@@ -126,6 +126,7 @@ jobs:
         uses: sudara/basic-macos-keychain-action@v1
         id: keychain
         if: ${{ runner.os == 'macOS'}}
+        continue-on-error: true
         with:
           dev-id-app-cert: ${{ secrets.DEV_ID_APP_CERT }}
           dev-id-app-password: ${{ secrets.DEV_ID_APP_PASSWORD }}
@@ -133,7 +134,7 @@ jobs:
           dev-id-installer-password: ${{ secrets.DEV_ID_INSTALLER_PASSWORD }}
 
       - name: Codesign (macOS)
-        if: ${{ runner.os == 'macOS' }}
+        if: ${{ runner.os == 'macOS' && steps.keychain.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           # Each plugin must be code signed
@@ -162,7 +163,7 @@ jobs:
           SetFile -a C "${{ env.CLAP_PATH }}"
 
       - name: pkgbuild, Productbuild and Notarize
-        if: ${{ runner.os == 'macOS' }}
+        if: ${{ runner.os == 'macOS' && steps.keychain.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           pkgbuild --identifier "${{ env.BUNDLE_ID }}.au.pkg" --version $VERSION --component "${{ env.AU_PATH }}" --install-location "/Library/Audio/Plug-Ins/Components"  "packaging/${{ env.PRODUCT_NAME }}.au.pkg"
@@ -194,6 +195,7 @@ jobs:
 
       - name: Codesign with Azure Trusted Signing
         if: ${{ runner.os == 'Windows' }}
+        continue-on-error: true
         uses: azure/artifact-signing-action@v1
         with:
           # The Azure Active Directory tenant (directory) ID.
@@ -217,6 +219,17 @@ jobs:
           # This signs all exes inside the folder
           files-folder: ${{ env.ARTIFACTS_PATH }}
           files-folder-filter: exe
+
+      - name: Zip VST3 (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: 7z a -tzip "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}-VST3.zip" "${{ env.VST3_PATH }}"
+
+      - name: Upload VST3 zip (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}-VST3.zip
+          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}-VST3.zip"
 
       - name: Upload Exe (Windows)
         if: ${{ runner.os == 'Windows' }}
