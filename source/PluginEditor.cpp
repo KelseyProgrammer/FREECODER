@@ -121,6 +121,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     }
 
     recButton.setLookAndFeel (laf.get());
+    recButton.setClickingTogglesState (true);
     addAndMakeVisible (recButton);
 
     engageButton.setLookAndFeel (laf.get());
