@@ -22,8 +22,14 @@ SpectralEngine::SpectralEngine()
     ch[1].init();
 }
 
-void SpectralEngine::prepare (double /*sampleRate*/, int /*blockSize*/)
+void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
 {
+    constexpr double kSmoothSec = 0.02; // 20 ms ramp
+    morphSmoothed.reset   (sampleRate, kSmoothSec);  morphSmoothed.setCurrentAndTargetValue   (0.5f);
+    dryWetSmoothed.reset  (sampleRate, kSmoothSec);  dryWetSmoothed.setCurrentAndTargetValue  (0.8f);
+    grainSmoothed.reset   (sampleRate, kSmoothSec);  grainSmoothed.setCurrentAndTargetValue   (0.0f);
+    formantSmoothed.reset (sampleRate, kSmoothSec);  formantSmoothed.setCurrentAndTargetValue (0.5f);
+    scatterSmoothed.reset (sampleRate, kSmoothSec);  scatterSmoothed.setCurrentAndTargetValue (0.3f);
     donorBuffer.clear();
     donorWritePos  = 0;
     donorLength    = 0;
@@ -305,11 +311,19 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             stopRecording();
     }
 
+    // Advance block-level smoothers and snapshot working values
+    morphSmoothed.skip   (numSamples);  morph   = morphSmoothed.getCurrentValue();
+    grainSmoothed.skip   (numSamples);  grain   = grainSmoothed.getCurrentValue();
+    formantSmoothed.skip (numSamples);  formant = formantSmoothed.getCurrentValue();
+    scatterSmoothed.skip (numSamples);  scatter = scatterSmoothed.getCurrentValue();
+    // dryWet is advanced per-sample below for click-free fades
+
     // Gate: pass dry when not engaged or while recording (so you hear the source cleanly)
     const bool shouldProcess = donorFrozen && hasDonor && !donorRecording;
 
     if (!shouldProcess)
     {
+        dryWetSmoothed.skip (numSamples); // keep smoother in sync with time
         // Keep inputRing current so engage starts with up-to-date audio
         for (int i = 0; i < numSamples; ++i)
         {
@@ -323,9 +337,6 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
         }
         return; // dry passthrough — buffer unchanged
     }
-
-    // FFT overlap-add synthesis (per sample)
-    const float dw = dryWet;
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -346,6 +357,7 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                 donorPhaseAccum[k] += donorTrueFreq[k];
         }
 
+        const float dw = dryWetSmoothed.getNextValue();
         for (int c = 0; c < numCh; ++c)
         {
             const float dry = buffer.getSample (c, i);

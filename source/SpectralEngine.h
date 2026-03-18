@@ -17,11 +17,11 @@ public:
 
     float getDonorFillLevel() const;
 
-    void setMorph   (float v) noexcept { morph   = v; }
-    void setDryWet  (float v) noexcept { dryWet  = v; }
-    void setGrain   (float v) noexcept { grain   = v; }
-    void setFormant (float v) noexcept { formant = v; }
-    void setScatter (float v) noexcept { scatter = v; }
+    void setMorph   (float v) noexcept { morphSmoothed.setTargetValue (v); }
+    void setDryWet  (float v) noexcept { dryWetSmoothed.setTargetValue (v); }
+    void setGrain   (float v) noexcept { grainSmoothed.setTargetValue (v); }
+    void setFormant (float v) noexcept { formantSmoothed.setTargetValue (v); }
+    void setScatter (float v) noexcept { scatterSmoothed.setTargetValue (v); }
     void setEngage  (bool v) noexcept;  // defined in .cpp — flushes OLA on transition
 
     static constexpr int getLatencySamples() noexcept { return kFFTSize; }
@@ -99,9 +99,14 @@ private:
     int          grainSpawnCounter = 0;
     juce::Random rng;
 
-    // Parameters (audio thread)
+    // Parameters — smoothed values drive the plain floats each block
+    juce::SmoothedValue<float> morphSmoothed   { 0.5f };
+    juce::SmoothedValue<float> dryWetSmoothed  { 0.8f };
+    juce::SmoothedValue<float> grainSmoothed   { 0.0f };
+    juce::SmoothedValue<float> formantSmoothed { 0.5f };
+    juce::SmoothedValue<float> scatterSmoothed { 0.3f };
+
     float morph   = 0.5f;
-    float dryWet  = 0.8f;
     float grain   = 0.0f;
     float formant = 0.5f;
     float scatter = 0.3f;
