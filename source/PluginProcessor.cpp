@@ -139,8 +139,11 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    spectralEngine.setMorph  (apvts.getRawParameterValue ("morph")->load());
-    spectralEngine.setDryWet (apvts.getRawParameterValue ("drywet")->load());
+    spectralEngine.setMorph   (apvts.getRawParameterValue ("morph")->load());
+    spectralEngine.setDryWet  (apvts.getRawParameterValue ("drywet")->load());
+    spectralEngine.setGrain   (apvts.getRawParameterValue ("grain")->load());
+    spectralEngine.setFormant (apvts.getRawParameterValue ("formant")->load());
+    spectralEngine.setScatter (apvts.getRawParameterValue ("scatter")->load());
 
     if (apvts.getRawParameterValue ("recTrigger")->load() > 0.5f)
         spectralEngine.startRecording();

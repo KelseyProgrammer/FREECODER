@@ -5,7 +5,8 @@
 #include "melatonin_inspector/melatonin_inspector.h"
 
 //==============================================================================
-class PluginEditor : public juce::AudioProcessorEditor
+class PluginEditor : public juce::AudioProcessorEditor,
+                     private juce::Timer
 {
 public:
     explicit PluginEditor (PluginProcessor&);
@@ -15,6 +16,8 @@ public:
     void resized() override;
 
 private:
+    void timerCallback() override;
+
     PluginProcessor& processorRef;
 
     // Knobs
@@ -27,18 +30,22 @@ private:
     juce::Label morphLabel, grainLabel, formantLabel, scatterLabel, drywetLabel;
 
     // REC button
-    juce::TextButton recButton { "REC" };
+    juce::TextButton recButton { "● REC" };
 
     // APVTS attachments
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
-    SliderAttachment morphAttachment   { processorRef.apvts, "morph",   morphKnob };
-    SliderAttachment grainAttachment   { processorRef.apvts, "grain",   grainKnob };
-    SliderAttachment formantAttachment { processorRef.apvts, "formant", formantKnob };
-    SliderAttachment scatterAttachment { processorRef.apvts, "scatter", scatterKnob };
-    SliderAttachment drywetAttachment  { processorRef.apvts, "drywet",  drywetKnob };
+    SliderAttachment morphAttachment   { processorRef.apvts, "morph",      morphKnob };
+    SliderAttachment grainAttachment   { processorRef.apvts, "grain",      grainKnob };
+    SliderAttachment formantAttachment { processorRef.apvts, "formant",    formantKnob };
+    SliderAttachment scatterAttachment { processorRef.apvts, "scatter",    scatterKnob };
+    SliderAttachment drywetAttachment  { processorRef.apvts, "drywet",     drywetKnob };
     ButtonAttachment recAttachment     { processorRef.apvts, "recTrigger", recButton };
+
+    // Donor fill meter state (updated on timer thread)
+    float donorFillLevel = 0.0f;
+    juce::Rectangle<int> fillMeterBounds;
 
     // Dev inspector
     std::unique_ptr<melatonin::Inspector> inspector;
