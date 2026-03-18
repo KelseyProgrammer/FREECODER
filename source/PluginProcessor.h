@@ -42,6 +42,8 @@ public:
     juce::AudioProcessorValueTreeState apvts;
 
     float getDonorFillLevel() const { return spectralEngine.getDonorFillLevel(); }
+    const juce::AudioBuffer<float>& getDonorBuffer() const { return spectralEngine.getDonorBuffer(); }
+    int   getDonorLength()   const { return spectralEngine.getDonorLength(); }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

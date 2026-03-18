@@ -58,11 +58,20 @@ public:
         g.setColour (juce::Colour (0xff44ff44).withAlpha (0.7f));
         g.drawRoundedRectangle (b, 6.0f, 1.5f);
 
-        // Value percentage
+        // Value — semitones for pitch pad, percentage for others
         g.setColour (juce::Colour (0xff44ff44));
-        g.setFont (juce::FontOptions (17.0f).withStyle ("Bold"));
-        g.drawText (juce::String ((int) (prop * 100)),
-                    b.reduced (4.0f), juce::Justification::centred);
+        g.setFont (juce::FontOptions (15.0f).withStyle ("Bold"));
+        juce::String valStr;
+        if (slider.getMaximum() > 1.0)  // pitch pad
+        {
+            const double v = slider.getValue();
+            valStr = (v >= 0.0 ? "+" : "") + juce::String (v, 1);
+        }
+        else
+        {
+            valStr = juce::String ((int) (prop * 100));
+        }
+        g.drawText (valStr, b.reduced (4.0f), juce::Justification::centred);
     }
 
     // Footswitch button (large circle)
@@ -114,11 +123,12 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         addAndMakeVisible (s);
     }
 
-    for (auto* s : { &grainSlider, &scatterSlider, &formantSlider })
+    for (auto* s : { &grainSlider, &scatterSlider, &formantSlider, &pitchSlider })
     {
         s->setLookAndFeel (laf.get());
         addAndMakeVisible (s);
     }
+    pitchSlider.setRange (-12.0, 12.0, 0.1);  // semitones, overrides attachment default display
 
     recButton.setLookAndFeel (laf.get());
     recButton.setClickingTogglesState (true);
@@ -127,6 +137,13 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     engageButton.setLookAndFeel (laf.get());
     engageButton.setClickingTogglesState (true);
     addAndMakeVisible (engageButton);
+
+    reverseButton.setClickingTogglesState (true);
+    reverseButton.setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff0a1a0a));
+    reverseButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
+    reverseButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff555555));
+    reverseButton.setColour (juce::TextButton::textColourOnId,  juce::Colour (0xff44ff44));
+    addAndMakeVisible (reverseButton);
 
     inspectButton.setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff111111));
     inspectButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff2a2a2a));
@@ -147,7 +164,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 PluginEditor::~PluginEditor()
 {
     stopTimer();
-    for (auto* s : { &morphSlider, &drywetSlider, &grainSlider, &scatterSlider, &formantSlider })
+    for (auto* s : { &morphSlider, &drywetSlider, &grainSlider, &scatterSlider, &formantSlider, &pitchSlider })
         s->setLookAndFeel (nullptr);
     recButton.setLookAndFeel (nullptr);
     engageButton.setLookAndFeel (nullptr);
@@ -254,6 +271,9 @@ void PluginEditor::paint (juce::Graphics& g)
     const int rpRight = formantSlider.getRight();
     g.drawText ("formant", rpRight + 4, rpad1Y, W - rpRight - 6, 20, juce::Justification::centredLeft);
 
+    const int rpad2Y = pitchSlider.getY() + pitchSlider.getHeight() / 2 - 10;
+    g.drawText ("pitch",   rpRight + 4, rpad2Y, W - rpRight - 6, 20, juce::Justification::centredLeft);
+
     // ── Centre display ───────────────────────────────────────────────────────
     g.setColour (juce::Colour (0xff060606));
     g.fillRoundedRectangle (displayBounds.toFloat(), 8.0f);
@@ -267,12 +287,52 @@ void PluginEditor::paint (juce::Graphics& g)
                 displayBounds.getX(), displayBounds.getY() + 6,
                 displayBounds.getWidth(), 14, juce::Justification::centred);
 
-    // Big digit
-    const bool isRecording = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
-    g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff44ff44));
-    g.setFont (juce::FontOptions (56.0f).withStyle ("Bold"));
-    g.drawText (donorFillLevel > 0.001f ? juce::String ((int) (donorFillLevel * 100)) : "--",
-                displayBounds.reduced (8, 16).toFloat(), juce::Justification::centred);
+    // Waveform
+    {
+        const int dlen = processorRef.getDonorLength();
+        if (dlen > 0)
+        {
+            const auto& buf  = processorRef.getDonorBuffer();
+            auto waveArea    = displayBounds.reduced (8, 8).withTrimmedTop (16).withTrimmedBottom (20);
+            const float midY = waveArea.getCentreY();
+            const float half = waveArea.getHeight() * 0.45f;
+            const int   ww   = waveArea.getWidth();
+
+            const bool isRecording = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
+            g.setColour (isRecording ? juce::Colour (0xff4a1a1a) : juce::Colour (0xff1a3d1a));
+
+            for (int px = 0; px < ww; ++px)
+            {
+                const int s0 = (int) ((float) px       / (float) ww * (float) dlen);
+                const int s1 = (int) ((float) (px + 1) / (float) ww * (float) dlen);
+                float mn = 0.0f, mx = 0.0f;
+                for (int s = s0; s < s1 && s < dlen; ++s)
+                {
+                    const float v = buf.getSample (0, s);
+                    mn = juce::jmin (mn, v);
+                    mx = juce::jmax (mx, v);
+                }
+                const float y1 = midY - mx * half;
+                const float y2 = juce::jmax (y1 + 1.0f, midY - mn * half);
+                g.drawLine ((float) (waveArea.getX() + px), y1,
+                            (float) (waveArea.getX() + px), y2, 1.0f);
+            }
+
+            // Percentage overlay (small, top-right corner of waveform area)
+            g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff44ff44));
+            g.setFont (juce::FontOptions (11.0f).withStyle ("Bold"));
+            g.drawText (juce::String ((int) (donorFillLevel * 100)) + "%",
+                        waveArea.getRight() - 36, waveArea.getY(), 34, 14,
+                        juce::Justification::centredRight);
+        }
+        else
+        {
+            // No donor yet — just show placeholder
+            g.setColour (juce::Colour (0xff1a3d1a));
+            g.setFont (juce::FontOptions (28.0f).withStyle ("Bold"));
+            g.drawText ("--", displayBounds.reduced (8, 16).toFloat(), juce::Justification::centred);
+        }
+    }
 
     // Fill bar at bottom of display
     auto barArea = displayBounds.withTrimmedTop (displayBounds.getHeight() - 18).reduced (10, 4);
@@ -283,13 +343,6 @@ void PluginEditor::paint (juce::Graphics& g)
         auto filled = barArea.withWidth ((int) (barArea.getWidth() * donorFillLevel));
         g.setColour (donorFillLevel >= 1.0f ? juce::Colours::red : juce::Colour (0xff44ff44));
         g.fillRoundedRectangle (filled.toFloat(), 3.0f);
-    }
-
-    // ── Decorative 4th pad (bottom-right, inactive) ──────────────────────────
-    {
-        juce::Rectangle<int> empty4 { formantSlider.getX(), scatterSlider.getY(),
-                                      formantSlider.getWidth(), scatterSlider.getHeight() };
-        drawDimPad (g, empty4);
     }
 
     // ── Footswitch labels ─────────────────────────────────────────────────────
@@ -346,7 +399,7 @@ void PluginEditor::resized()
     grainSlider.setBounds   (leftX,  pad1Y, padW, padH);
     scatterSlider.setBounds (leftX,  pad2Y, padW, padH);
     formantSlider.setBounds (rightX, pad1Y, padW, padH);
-    // Bottom-right (empty) — drawn directly in paint(), no component needed
+    pitchSlider.setBounds   (rightX, pad2Y, padW, padH);
 
     // ── Centre display ─────────────────────────────────────────────────────────
     const int dispX = leftX + padW + 14;
@@ -356,8 +409,9 @@ void PluginEditor::resized()
     // ── Footswitches ────────────────────────────────────────────────────────────
     const int swSize = 88;
     const int swY    = 350;
-    recButton.setBounds    (W / 4 - swSize / 2,     swY, swSize, swSize);
-    engageButton.setBounds (3 * W / 4 - swSize / 2, swY, swSize, swSize);
+    recButton.setBounds     (W / 4 - swSize / 2,     swY, swSize, swSize);
+    engageButton.setBounds  (3 * W / 4 - swSize / 2, swY, swSize, swSize);
+    reverseButton.setBounds (W / 2 - 38, swY + swSize / 2 - 11, 76, 22);
 
     // ── Inspector (tiny, top-right corner) ────────────────────────────────────
     inspectButton.setBounds (W - 18, 2, 16, 16);

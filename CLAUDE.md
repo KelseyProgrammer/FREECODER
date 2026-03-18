@@ -103,12 +103,15 @@ All parameters use `juce::AudioProcessorValueTreeState`.
 
 | ID | Name | Range | Default | Description |
 |---|---|---|---|---|
-| `morph` | Morph | 0.0–1.0 | 0.5 | Spectral blend dry input ↔ donor spectrum |
+| `morph` | Morph | 0.0–1.0 | 0.5 | Phrase loop (0) ↔ spectral freeze (1) |
 | `grain` | Grain | 0.0–1.0 | 0.0 | Amount of granular texture from donor |
 | `formant` | Formant | 0.0–1.0 | 0.5 | Formant envelope transfer intensity |
 | `scatter` | Scatter | 0.0–1.0 | 0.3 | Grain position randomization |
 | `drywet` | Dry/Wet | 0.0–1.0 | 0.8 | Final dry/wet blend |
-| `recTrigger` | Record | 0/1 | 0 | Momentary — starts/stops donor capture |
+| `pitch` | Pitch | -12–+12 | 0 | Phrase loop pitch shift in semitones |
+| `recTrigger` | Record | 0/1 | 0 | Toggle — starts/stops donor capture |
+| `engage` | Engage | 0/1 | 0 | Toggle — activates spectral freeze + phrase |
+| `reverse` | Reverse | 0/1 | 0 | Toggle — plays phrase loop backwards |
 
 ---
 
@@ -194,19 +197,50 @@ cmake --build Builds --target FREECODER_Tests && ./Builds/tests/FREECODER_Tests
 - Phase of live input is preserved; only magnitudes are morphed
 - Introduces ~2048-sample latency (~46 ms at 44100 Hz)
 
-### Phase 3 — Extended Features
-- [ ] Granular grain engine
-- [ ] Formant envelope extraction & transfer
-- [ ] Scatter parameter
-- [ ] Polished UI
+### Phase 3 — Extended Features ✅ COMPLETE
+- [x] Granular grain engine (stereo, scatter-randomised, Hann-windowed)
+- [x] Formant envelope extraction & transfer (spectral envelope via prefix-sum box filter)
+- [x] Scatter parameter (grain position randomisation)
+- [x] Pedal-inspired UI: black + neon green, pad sliders, footswitches
+
+### Phase 4 — Phase Vocoder + ENGAGE ✅ COMPLETE
+- [x] True frequency estimation (phase deviation per-bin)
+- [x] ENGAGE = spectral freeze with self-sustaining phase accumulators
+- [x] 15 ms crossfade on engage/disengage transitions
+- [x] Dry passthrough (gate) when not engaged
+- [x] Play Phrase: raw donor loop blended with spectral freeze via MORPH
+- [x] Freeze position: phrase loop anchors to donor analysis position at moment of engage
+- [x] Latency reporting (`setLatencySamples`) and donor state persistence (getStateInformation)
+
+### Phase 5 — Polish + Shippability ✅ COMPLETE
+- [x] Parameter smoothing (20 ms SmoothedValue for all params, 15 ms engage crossfade)
+- [x] Output limiter (juce::dsp::Limiter, -1 dBFS ceiling)
+- [x] Stereo grain engine (per-channel donor reads)
+- [x] PITCH pad: ±12 semitones, fractional-interpolated phrase loop resampling
+- [x] REVERSE toggle: phrase loop plays backwards
+- [x] Waveform display: live donor buffer drawn in centre display
+- [x] MORPH sublabel: `phrase ↔ spectral` endpoint labels
+- [x] AU validation: `auval -v aufx Frcd Amnt` — all tests pass
+- [x] CI: Windows/macOS/Linux builds, pluginval level 10, graceful signing bypass
+- [x] Version: 0.1.0
+
+### SpectralEngine Implementation Notes
+- FFT size: 2048 (`kFFTOrder = 11`), hop: 512 (4x overlap)
+- Hann analysis window (unnormalized), OLA scale = `1 / (2 * kFFTSize)`
+- Donor magnitude spectrum re-analysed every hop from advancing `donorReadPos`
+- Phase of live input is preserved in spectral morph; donor phase runs free when frozen
+- Introduces ~2048-sample latency (~46 ms at 44100 Hz), reported to host
+- PITCH: `rate = pow(2, semitones/12)`, fractional `phraseReadPosF` with linear interp
+- REVERSE: decrements `phraseReadPosF` by rate each sample, wraps around donorLength
 
 ---
 
 ## Notes & Conventions
 
 - **No global state** — all DSP state lives in `PluginProcessor` or `SpectralEngine`
-- **Thread safety** — use `juce::AbstractFifo` or atomic flags for donor capture
-- **Sample rate changes** — handle `prepareToPlay` properly, re-allocate FFT buffers there
-- **FFT size** — start with 2048 or 4096, 50% overlap, Hann window
-- **Test-driven** — add a Catch2 test for `SpectralEngine` magnitude blending early
+- **Thread safety** — donor buffer reads in UI (waveform display) are best-effort, no lock needed for display
+- **Sample rate changes** — handled in `prepareToPlay`, all SmoothedValues re-initialised
+- **FFT size** — 2048-pt, 4x overlap (hop = 512), Hann window
+- **Test-driven** — Catch2 tests in `tests/SpectralEngineTests.cpp`; em dashes replaced with `-` for Windows CTest compatibility
 - **No JUCE_DISPLAY_SPLASH_SCREEN** hack needed — handled by Pamplejuce defaults
+- **AU codes**: plist uses lowercase (`Frcd`/`Amnt`), so run `auval -v aufx Frcd Amnt` (not uppercase)

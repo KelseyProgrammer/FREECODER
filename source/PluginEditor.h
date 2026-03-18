@@ -27,14 +27,16 @@ private:
     juce::Slider morphSlider  { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
     juce::Slider drywetSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
 
-    // Pad sliders (illuminated rectangular pads, 3 of 4 active)
+    // Pad sliders (illuminated rectangular pads, all 4 active)
     juce::Slider grainSlider   { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     juce::Slider scatterSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
     juce::Slider formantSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    juce::Slider pitchSlider   { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
 
     // Footswitches
-    juce::TextButton recButton    { "REC" };
-    juce::TextButton engageButton { "ENGAGE" };
+    juce::TextButton recButton     { "REC" };
+    juce::TextButton engageButton  { "ENGAGE" };
+    juce::TextButton reverseButton { "REVERSE" };
 
     // APVTS attachments
     using SA = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -44,8 +46,10 @@ private:
     SA grainAttachment   { processorRef.apvts, "grain",      grainSlider };
     SA scatterAttachment { processorRef.apvts, "scatter",    scatterSlider };
     SA formantAttachment { processorRef.apvts, "formant",    formantSlider };
-    BA recAttachment    { processorRef.apvts, "recTrigger", recButton };
-    BA engageAttachment { processorRef.apvts, "engage",     engageButton };
+    SA pitchAttachment   { processorRef.apvts, "pitch",      pitchSlider };
+    BA recAttachment     { processorRef.apvts, "recTrigger", recButton };
+    BA engageAttachment  { processorRef.apvts, "engage",     engageButton };
+    BA reverseAttachment { processorRef.apvts, "reverse",    reverseButton };
 
     // State updated by timer
     float donorFillLevel = 0.0f;

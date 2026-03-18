@@ -41,6 +41,7 @@ void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
     grainSmoothed.reset   (sampleRate, kSmoothSec);  grainSmoothed.setCurrentAndTargetValue   (0.0f);
     formantSmoothed.reset (sampleRate, kSmoothSec);  formantSmoothed.setCurrentAndTargetValue (0.5f);
     scatterSmoothed.reset (sampleRate, kSmoothSec);  scatterSmoothed.setCurrentAndTargetValue (0.3f);
+    pitchSmoothed.reset   (sampleRate, kSmoothSec);  pitchSmoothed.setCurrentAndTargetValue   (0.0f);
     donorBuffer.clear();
     donorWritePos  = 0;
     donorLength    = 0;
@@ -90,7 +91,7 @@ void SpectralEngine::setEngage (bool v) noexcept
     if (donorFrozen == v) return;
     donorFrozen = v;
     engageGain.setTargetValue (v ? 1.0f : 0.0f);
-    if (v) phraseReadPos = donorReadPos;  // freeze at the current analysis position
+    if (v) phraseReadPosF = (float) donorReadPos;  // freeze at the current analysis position
     // OLA flush is deferred until the fade-out ramp completes in process()
 }
 
@@ -320,6 +321,7 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
     grainSmoothed.skip   (numSamples);  grain   = grainSmoothed.getCurrentValue();
     formantSmoothed.skip (numSamples);  formant = formantSmoothed.getCurrentValue();
     scatterSmoothed.skip (numSamples);  scatter = scatterSmoothed.getCurrentValue();
+    pitchSmoothed.skip   (numSamples);  pitch   = pitchSmoothed.getCurrentValue();
     // dryWet is advanced per-sample below for click-free fades
 
     // Gate: process while engaged OR while fading out; skip when fully disengaged
@@ -365,6 +367,12 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
 
         const float dw = dryWetSmoothed.getNextValue();
         const float eg = engageGain.getNextValue();
+        // Pitch-shifted phrase: linear interpolation between adjacent samples
+        const float rate    = std::pow (2.0f, pitch / 12.0f);
+        const int   pos0    = (int) phraseReadPosF % donorLength;
+        const int   pos1    = (pos0 + 1) % donorLength;
+        const float frac    = phraseReadPosF - std::floor (phraseReadPosF);
+
         for (int c = 0; c < numCh; ++c)
         {
             const float dry         = buffer.getSample (c, i);
@@ -372,11 +380,16 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                                           ? ch[c].outputQueue[ch[c].outputQueuePos++]
                                           : 0.0f;
             // Play Phrase: blend spectral freeze with raw donor loop; morph is the ratio
-            const float phraseOut   = donorBuffer.getSample (c, phraseReadPos % donorLength);
+            const float phraseOut   = donorBuffer.getSample (c, pos0) * (1.0f - frac)
+                                    + donorBuffer.getSample (c, pos1) * frac;
             const float wet         = spectralWet * morph + phraseOut * (1.0f - morph);
             buffer.setSample (c, i, dry * (1.0f - dw * eg) + wet * dw * eg);
         }
-        phraseReadPos = (phraseReadPos + 1) % donorLength;
+
+        // Advance phrase playhead (reverse-aware, pitch-shifted)
+        phraseReadPosF += reverse ? -rate : rate;
+        if (phraseReadPosF < 0.0f)           phraseReadPosF += (float) donorLength;
+        if (phraseReadPosF >= (float) donorLength) phraseReadPosF -= (float) donorLength;
     }
 
     // Granular texture (added on top of morphed signal)

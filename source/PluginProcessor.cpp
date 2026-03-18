@@ -13,6 +13,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     layout.add (std::make_unique<juce::AudioParameterFloat> ("drywet",   "Dry/Wet",  0.0f, 1.0f, 0.8f));
     layout.add (std::make_unique<juce::AudioParameterBool>  ("recTrigger", "Record",  false));
     layout.add (std::make_unique<juce::AudioParameterBool>  ("engage",     "Engage",  false));
+    layout.add (std::make_unique<juce::AudioParameterFloat> ("pitch",      "Pitch",   -12.0f, 12.0f, 0.0f));
+    layout.add (std::make_unique<juce::AudioParameterBool>  ("reverse",    "Reverse", false));
 
     return layout;
 }
@@ -154,7 +156,9 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     else
         spectralEngine.stopRecording();
 
-    spectralEngine.setEngage (apvts.getRawParameterValue ("engage")->load() > 0.5f);
+    spectralEngine.setEngage  (apvts.getRawParameterValue ("engage")->load() > 0.5f);
+    spectralEngine.setPitch   (apvts.getRawParameterValue ("pitch")->load());
+    spectralEngine.setReverse (apvts.getRawParameterValue ("reverse")->load() > 0.5f);
 
     spectralEngine.process (buffer);
 }

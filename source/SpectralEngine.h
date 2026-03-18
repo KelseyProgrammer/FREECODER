@@ -22,6 +22,8 @@ public:
     void setGrain   (float v) noexcept { grainSmoothed.setTargetValue (v); }
     void setFormant (float v) noexcept { formantSmoothed.setTargetValue (v); }
     void setScatter (float v) noexcept { scatterSmoothed.setTargetValue (v); }
+    void setPitch   (float semitones) noexcept { pitchSmoothed.setTargetValue (semitones); }
+    void setReverse (bool v) noexcept { reverse = v; }
     void setEngage  (bool v) noexcept;  // defined in .cpp — flushes OLA on transition
     bool isEngaged() const noexcept { return donorFrozen; }
 
@@ -97,9 +99,11 @@ private:
     int  donorWritePos  = 0;
     int  donorLength    = 0;
     int  donorReadPos   = 0;
-    bool donorRecording = false;
-    bool hasDonor       = false;
-    bool donorFrozen    = false;
+    bool  donorRecording  = false;
+    bool  hasDonor        = false;
+    bool  donorFrozen     = false;
+    bool  reverse         = false;   // play phrase in reverse
+    float phraseReadPosF  = 0.0f;    // fractional playhead for pitch-shifted phrase loop
 
     // Grain state
     std::array<Grain, kMaxGrains> grains;
@@ -112,11 +116,13 @@ private:
     juce::SmoothedValue<float> grainSmoothed   { 0.0f };
     juce::SmoothedValue<float> formantSmoothed { 0.5f };
     juce::SmoothedValue<float> scatterSmoothed { 0.3f };
+    juce::SmoothedValue<float> pitchSmoothed   { 0.0f };
 
     float morph   = 0.5f;
     float grain   = 0.0f;
     float formant = 0.5f;
     float scatter = 0.3f;
+    float pitch   = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectralEngine)
 };
