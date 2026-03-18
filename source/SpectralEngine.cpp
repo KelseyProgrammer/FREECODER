@@ -90,7 +90,7 @@ void SpectralEngine::setEngage (bool v) noexcept
     if (donorFrozen == v) return;
     donorFrozen = v;
     engageGain.setTargetValue (v ? 1.0f : 0.0f);
-    if (v) phraseReadPos = 0;  // restart phrase loop from beginning on each engage
+    if (v) phraseReadPos = donorReadPos;  // freeze at the current analysis position
     // OLA flush is deferred until the fade-out ramp completes in process()
 }
 
