@@ -4,6 +4,8 @@
 #include "BinaryData.h"
 #include "melatonin_inspector/melatonin_inspector.h"
 
+class FreecoderLookAndFeel;
+
 //==============================================================================
 class PluginEditor : public juce::AudioProcessorEditor,
                      private juce::Timer
@@ -19,37 +21,38 @@ private:
     void timerCallback() override;
 
     PluginProcessor& processorRef;
+    std::unique_ptr<FreecoderLookAndFeel> laf;
 
-    // Knobs
-    juce::Slider morphKnob    { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
-    juce::Slider grainKnob    { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
-    juce::Slider formantKnob  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
-    juce::Slider scatterKnob  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
-    juce::Slider drywetKnob   { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    // Top horizontal sliders (like the pedal's strip sliders)
+    juce::Slider morphSlider  { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
+    juce::Slider drywetSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
 
-    juce::Label morphLabel, grainLabel, formantLabel, scatterLabel, drywetLabel;
+    // Pad sliders (illuminated rectangular pads, 3 of 4 active)
+    juce::Slider grainSlider   { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    juce::Slider scatterSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    juce::Slider formantSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
 
-    // REC button
-    juce::TextButton recButton { "● REC" };
+    // Footswitches
+    juce::TextButton recButton    { "REC" };
+    juce::TextButton engageButton { "ENGAGE" };
 
     // APVTS attachments
-    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    using SA = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using BA = juce::AudioProcessorValueTreeState::ButtonAttachment;
+    SA morphAttachment   { processorRef.apvts, "morph",      morphSlider };
+    SA drywetAttachment  { processorRef.apvts, "drywet",     drywetSlider };
+    SA grainAttachment   { processorRef.apvts, "grain",      grainSlider };
+    SA scatterAttachment { processorRef.apvts, "scatter",    scatterSlider };
+    SA formantAttachment { processorRef.apvts, "formant",    formantSlider };
+    BA recAttachment     { processorRef.apvts, "recTrigger", recButton };
 
-    SliderAttachment morphAttachment   { processorRef.apvts, "morph",      morphKnob };
-    SliderAttachment grainAttachment   { processorRef.apvts, "grain",      grainKnob };
-    SliderAttachment formantAttachment { processorRef.apvts, "formant",    formantKnob };
-    SliderAttachment scatterAttachment { processorRef.apvts, "scatter",    scatterKnob };
-    SliderAttachment drywetAttachment  { processorRef.apvts, "drywet",     drywetKnob };
-    ButtonAttachment recAttachment     { processorRef.apvts, "recTrigger", recButton };
-
-    // Donor fill meter state (updated on timer thread)
+    // State updated by timer
     float donorFillLevel = 0.0f;
-    juce::Rectangle<int> fillMeterBounds;
+    juce::Rectangle<int> displayBounds;
 
-    // Dev inspector
+    // Dev inspector (tiny, tucked in corner)
     std::unique_ptr<melatonin::Inspector> inspector;
-    juce::TextButton inspectButton { "Inspect" };
+    juce::TextButton inspectButton { "i" };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };
