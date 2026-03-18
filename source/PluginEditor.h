@@ -11,15 +11,38 @@ public:
     explicit PluginEditor (PluginProcessor&);
     ~PluginEditor() override;
 
-    //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
-    // This reference is provided as a quick way for your editor to
-    // access the processor object that created it.
     PluginProcessor& processorRef;
+
+    // Knobs
+    juce::Slider morphKnob    { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::Slider grainKnob    { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::Slider formantKnob  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::Slider scatterKnob  { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+    juce::Slider drywetKnob   { juce::Slider::RotaryVerticalDrag, juce::Slider::TextBoxBelow };
+
+    juce::Label morphLabel, grainLabel, formantLabel, scatterLabel, drywetLabel;
+
+    // REC button
+    juce::TextButton recButton { "REC" };
+
+    // APVTS attachments
+    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+    using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
+
+    SliderAttachment morphAttachment   { processorRef.apvts, "morph",   morphKnob };
+    SliderAttachment grainAttachment   { processorRef.apvts, "grain",   grainKnob };
+    SliderAttachment formantAttachment { processorRef.apvts, "formant", formantKnob };
+    SliderAttachment scatterAttachment { processorRef.apvts, "scatter", scatterKnob };
+    SliderAttachment drywetAttachment  { processorRef.apvts, "drywet",  drywetKnob };
+    ButtonAttachment recAttachment     { processorRef.apvts, "recTrigger", recButton };
+
+    // Dev inspector
     std::unique_ptr<melatonin::Inspector> inspector;
-    juce::TextButton inspectButton { "Inspect the UI" };
+    juce::TextButton inspectButton { "Inspect" };
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginEditor)
 };
