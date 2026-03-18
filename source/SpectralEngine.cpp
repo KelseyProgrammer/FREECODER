@@ -276,22 +276,23 @@ void SpectralEngine::processGrains (juce::AudioBuffer<float>& buffer, int numCh,
             spawnGrain();
         }
 
-        float grainOut = 0.0f;
+        float grainOut[2] = { 0.0f, 0.0f };
         for (auto& gr : grains)
         {
             if (!gr.active) continue;
 
             const float t   = (float) gr.age / (float) (gr.size - 1);
             const float env = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * t));
-            grainOut += donorBuffer.getSample (0, gr.readPos % donorLength) * env;
+            const int   pos = gr.readPos % donorLength;
+            for (int c = 0; c < numCh; ++c)
+                grainOut[c] += donorBuffer.getSample (c, pos) * env;
 
             if (++gr.readPos, ++gr.age >= gr.size)
                 gr.active = false;
         }
 
-        const float out = grainOut * g * 0.2f;
         for (int c = 0; c < numCh; ++c)
-            buffer.addSample (c, i, out);
+            buffer.addSample (c, i, grainOut[c] * g * 0.2f);
     }
 }
 

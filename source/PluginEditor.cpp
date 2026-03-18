@@ -233,6 +233,12 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawText (juce::String (morphSlider.getValue(),  2), 20,     125, 80, 12, juce::Justification::centredLeft);
     g.drawText (juce::String (drywetSlider.getValue(), 2), W - 120, 125, 80, 12, juce::Justification::centredRight);
 
+    // Morph endpoint labels: PHRASE (0) on left, SPECTRAL (1) on right
+    g.setColour (juce::Colour (0xff333333));
+    g.setFont (juce::FontOptions (7.0f));
+    g.drawText ("phrase",   20,      139, 80,  10, juce::Justification::centredLeft);
+    g.drawText ("spectral", 20,      139, 218, 10, juce::Justification::centredRight);
+
     // ── Pad labels ──────────────────────────────────────────────────────────
     const int lpad1Y = grainSlider.getY()   + grainSlider.getHeight()   / 2 - 10;
     const int lpad2Y = scatterSlider.getY() + scatterSlider.getHeight() / 2 - 10;
