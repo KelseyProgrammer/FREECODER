@@ -32,6 +32,9 @@ void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
     limiter.setThreshold (-1.0f);  // -1 dBFS ceiling
     limiter.setRelease   (50.0f);  // 50 ms release
 
+    engageGain.reset (sampleRate, 0.015); // 15 ms crossfade
+    engageGain.setCurrentAndTargetValue (0.0f);
+
     constexpr double kSmoothSec = 0.02; // 20 ms ramp
     morphSmoothed.reset   (sampleRate, kSmoothSec);  morphSmoothed.setCurrentAndTargetValue   (0.5f);
     dryWetSmoothed.reset  (sampleRate, kSmoothSec);  dryWetSmoothed.setCurrentAndTargetValue  (0.8f);
@@ -85,18 +88,9 @@ void SpectralEngine::stopRecording()
 void SpectralEngine::setEngage (bool v) noexcept
 {
     if (donorFrozen == v) return;
-
-    // Flush OLA output buffers on every transition so no wet tail bleeds through
-    for (auto& cs : ch)
-    {
-        std::fill (cs.outputAccum.begin(), cs.outputAccum.end(), 0.0f);
-        std::fill (cs.outputQueue.begin(), cs.outputQueue.end(), 0.0f);
-        cs.outputQueuePos = kHopSize; // mark queue empty
-    }
-    for (auto& gr : grains)
-        gr.active = false;
-
     donorFrozen = v;
+    engageGain.setTargetValue (v ? 1.0f : 0.0f);
+    // OLA flush is deferred until the fade-out ramp completes in process()
 }
 
 float SpectralEngine::getDonorFillLevel() const
@@ -326,12 +320,14 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
     scatterSmoothed.skip (numSamples);  scatter = scatterSmoothed.getCurrentValue();
     // dryWet is advanced per-sample below for click-free fades
 
-    // Gate: pass dry when not engaged or while recording (so you hear the source cleanly)
-    const bool shouldProcess = donorFrozen && hasDonor && !donorRecording;
+    // Gate: process while engaged OR while fading out; skip when fully disengaged
+    const bool isFading      = engageGain.isSmoothing() || engageGain.getCurrentValue() > 0.001f;
+    const bool shouldProcess = (donorFrozen || isFading) && hasDonor && !donorRecording;
 
     if (!shouldProcess)
     {
-        dryWetSmoothed.skip (numSamples); // keep smoother in sync with time
+        engageGain.skip     (numSamples); // keep smoothers in sync
+        dryWetSmoothed.skip (numSamples);
         // Keep inputRing current so engage starts with up-to-date audio
         for (int i = 0; i < numSamples; ++i)
         {
@@ -366,19 +362,33 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
         }
 
         const float dw = dryWetSmoothed.getNextValue();
+        const float eg = engageGain.getNextValue();
         for (int c = 0; c < numCh; ++c)
         {
             const float dry = buffer.getSample (c, i);
             const float wet = (ch[c].outputQueuePos < kHopSize)
                                   ? ch[c].outputQueue[ch[c].outputQueuePos++]
                                   : 0.0f;
-            buffer.setSample (c, i, dry * (1.0f - dw) + wet * dw);
+            buffer.setSample (c, i, dry * (1.0f - dw * eg) + wet * dw * eg);
         }
     }
 
     // Granular texture (added on top of morphed signal)
     if (grain > 0.0f)
         processGrains (buffer, numCh, numSamples);
+
+    // Deferred OLA flush — once the fade-out ramp completes, clear stale wet state
+    if (!donorFrozen && !engageGain.isSmoothing() && engageGain.getCurrentValue() < 0.001f)
+    {
+        for (auto& cs : ch)
+        {
+            std::fill (cs.outputAccum.begin(), cs.outputAccum.end(), 0.0f);
+            std::fill (cs.outputQueue.begin(), cs.outputQueue.end(), 0.0f);
+            cs.outputQueuePos = kHopSize;
+        }
+        for (auto& gr : grains)
+            gr.active = false;
+    }
 
     // Output limiter — catches hot signals from heavy morph/grain combinations
     juce::dsp::AudioBlock<float>        block (buffer);

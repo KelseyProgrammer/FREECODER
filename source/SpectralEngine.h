@@ -57,6 +57,9 @@ private:
     // Output limiter — prevents clipping at high morph/grain settings
     juce::dsp::Limiter<float> limiter;
 
+    // Engage crossfade gain (0 = dry, 1 = fully engaged)
+    juce::SmoothedValue<float> engageGain { 0.0f };
+
     // Per-channel OLA state
     struct ChannelState
     {
