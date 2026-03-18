@@ -28,7 +28,7 @@ static juce::AudioBuffer<float> makeBuffer (int numSamples, float value = 0.0f)
 // Magnitude blend math
 // ---------------------------------------------------------------------------
 
-TEST_CASE ("Magnitude blend — morph extremes and midpoint", "[SpectralEngine][blend]")
+TEST_CASE ("Magnitude blend - morph extremes and midpoint", "[SpectralEngine][blend]")
 {
     const float inputMag = 0.8f;
     const float donorMag = 0.2f;
@@ -55,7 +55,7 @@ TEST_CASE ("Magnitude blend — morph extremes and midpoint", "[SpectralEngine][
     }
 }
 
-TEST_CASE ("Magnitude blend — identical magnitudes", "[SpectralEngine][blend]")
+TEST_CASE ("Magnitude blend - identical magnitudes", "[SpectralEngine][blend]")
 {
     const float mag = 0.6f;
     for (float m = 0.0f; m <= 1.0f; m += 0.25f)
@@ -66,7 +66,7 @@ TEST_CASE ("Magnitude blend — identical magnitudes", "[SpectralEngine][blend]"
 // SpectralEngine state management
 // ---------------------------------------------------------------------------
 
-TEST_CASE ("SpectralEngine — initial state", "[SpectralEngine][state]")
+TEST_CASE ("SpectralEngine - initial state", "[SpectralEngine][state]")
 {
     SpectralEngine engine;
     engine.prepare (44100.0, 512);
@@ -74,7 +74,7 @@ TEST_CASE ("SpectralEngine — initial state", "[SpectralEngine][state]")
     REQUIRE (engine.getDonorFillLevel() == Catch::Approx (0.0f));
 }
 
-TEST_CASE ("SpectralEngine — donor fill level grows during recording", "[SpectralEngine][state]")
+TEST_CASE ("SpectralEngine - donor fill level grows during recording", "[SpectralEngine][state]")
 {
     SpectralEngine engine;
     engine.prepare (44100.0, 512);
@@ -93,7 +93,7 @@ TEST_CASE ("SpectralEngine — donor fill level grows during recording", "[Spect
     REQUIRE (engine.getDonorFillLevel() < 1.0f);
 }
 
-TEST_CASE ("SpectralEngine — startRecording resets fill level", "[SpectralEngine][state]")
+TEST_CASE ("SpectralEngine - startRecording resets fill level", "[SpectralEngine][state]")
 {
     SpectralEngine engine;
     engine.prepare (44100.0, 512);
@@ -107,12 +107,12 @@ TEST_CASE ("SpectralEngine — startRecording resets fill level", "[SpectralEngi
     const float fillAfterFirst = engine.getDonorFillLevel();
     REQUIRE (fillAfterFirst > 0.0f);
 
-    // Start recording again — should reset the buffer
+    // Start recording again - should reset the buffer
     engine.startRecording();
     REQUIRE (engine.getDonorFillLevel() == Catch::Approx (0.0f));
 }
 
-TEST_CASE ("SpectralEngine — redundant start/stop calls are safe", "[SpectralEngine][state]")
+TEST_CASE ("SpectralEngine - redundant start/stop calls are safe", "[SpectralEngine][state]")
 {
     SpectralEngine engine;
     engine.prepare (44100.0, 512);
@@ -130,14 +130,14 @@ TEST_CASE ("SpectralEngine — redundant start/stop calls are safe", "[SpectralE
     REQUIRE (engine.getDonorFillLevel() == Catch::Approx (fillMid));
 }
 
-TEST_CASE ("SpectralEngine — process does not crash with silence", "[SpectralEngine][process]")
+TEST_CASE ("SpectralEngine - process does not crash with silence", "[SpectralEngine][process]")
 {
     SpectralEngine engine;
     engine.prepare (44100.0, 512);
 
     auto buf = makeBuffer (512, 0.0f);
 
-    // Process 100 blocks of silence without a donor — should not crash or produce NaN
+    // Process 100 blocks of silence without a donor - should not crash or produce NaN
     for (int i = 0; i < 100; ++i)
     {
         engine.process (buf);
