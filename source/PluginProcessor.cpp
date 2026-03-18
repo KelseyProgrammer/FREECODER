@@ -70,7 +70,9 @@ bool PluginProcessor::isMidiEffect() const
 
 double PluginProcessor::getTailLengthSeconds() const
 {
-    return 0.0;
+    // ENGAGE creates an indefinite spectral sustain; report a generous tail
+    // so DAWs don't cut playback before the effect has decayed
+    return spectralEngine.isEngaged() ? 30.0 : 0.0;
 }
 
 int PluginProcessor::getNumPrograms()

@@ -23,6 +23,7 @@ public:
     void setFormant (float v) noexcept { formantSmoothed.setTargetValue (v); }
     void setScatter (float v) noexcept { scatterSmoothed.setTargetValue (v); }
     void setEngage  (bool v) noexcept;  // defined in .cpp — flushes OLA on transition
+    bool isEngaged() const noexcept { return donorFrozen; }
 
     static constexpr int getLatencySamples() noexcept { return kFFTSize; }
 
@@ -52,6 +53,9 @@ private:
     // FFT objects
     juce::dsp::FFT fft;
     juce::dsp::WindowingFunction<float> window;
+
+    // Output limiter — prevents clipping at high morph/grain settings
+    juce::dsp::Limiter<float> limiter;
 
     // Per-channel OLA state
     struct ChannelState

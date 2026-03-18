@@ -298,7 +298,7 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawText ("REC",    recCx - 50, recBot + 4,  100, 18, juce::Justification::centred);
     g.setColour (juce::Colour (0xff555555));
     g.setFont (juce::FontOptions (7.5f));
-    g.drawText ("HOLD TO REC", recCx - 55, recBot + 22, 110, 12, juce::Justification::centred);
+    g.drawText ("CLICK TO RECORD", recCx - 55, recBot + 22, 110, 12, juce::Justification::centred);
 
     // ENGAGE label + sublabel
     const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
@@ -320,7 +320,7 @@ void PluginEditor::paint (juce::Graphics& g)
     // ── Bottom branding ────────────────────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f));
-    g.drawText ("G A M E C H A N G E R  |  F R E E C O D E R", 0, H - 16, W, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 1 . 0", 0, H - 16, W, 14, juce::Justification::centred);
 }
 
 void PluginEditor::resized()

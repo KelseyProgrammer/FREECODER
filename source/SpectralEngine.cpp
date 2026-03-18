@@ -24,6 +24,14 @@ SpectralEngine::SpectralEngine()
 
 void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
 {
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate       = sampleRate;
+    spec.maximumBlockSize = (juce::uint32) 4096;
+    spec.numChannels      = 2;
+    limiter.prepare (spec);
+    limiter.setThreshold (-1.0f);  // -1 dBFS ceiling
+    limiter.setRelease   (50.0f);  // 50 ms release
+
     constexpr double kSmoothSec = 0.02; // 20 ms ramp
     morphSmoothed.reset   (sampleRate, kSmoothSec);  morphSmoothed.setCurrentAndTargetValue   (0.5f);
     dryWetSmoothed.reset  (sampleRate, kSmoothSec);  dryWetSmoothed.setCurrentAndTargetValue  (0.8f);
@@ -371,4 +379,9 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
     // Granular texture (added on top of morphed signal)
     if (grain > 0.0f)
         processGrains (buffer, numCh, numSamples);
+
+    // Output limiter — catches hot signals from heavy morph/grain combinations
+    juce::dsp::AudioBlock<float>        block (buffer);
+    juce::dsp::ProcessContextReplacing<float> ctx (block);
+    limiter.process (ctx);
 }
