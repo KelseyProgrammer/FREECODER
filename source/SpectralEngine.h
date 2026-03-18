@@ -22,6 +22,13 @@ public:
     void setGrain   (float v) noexcept { grain   = v; }
     void setFormant (float v) noexcept { formant = v; }
     void setScatter (float v) noexcept { scatter = v; }
+    void setEngage  (bool  v) noexcept { donorFrozen = v; }
+
+    static constexpr int getLatencySamples() noexcept { return kFFTSize; }
+
+    const juce::AudioBuffer<float>& getDonorBuffer() const noexcept { return donorBuffer; }
+    int  getDonorLength() const noexcept { return donorLength; }
+    void setDonorData (const juce::AudioBuffer<float>& buf, int length);
 
 private:
     static constexpr int kFFTOrder        = 11;
@@ -74,6 +81,9 @@ private:
     std::vector<float> liveEnvelope;  // kNumBins
     std::vector<float> donorMag;      // kNumBins
     std::vector<float> donorEnvelope; // kNumBins
+    std::vector<float> donorPhasePrev;  // kNumBins — phase from last donor analysis
+    std::vector<float> donorTrueFreq;   // kNumBins — estimated radians-per-hop per bin
+    std::vector<float> donorPhaseAccum; // kNumBins — running phase for frozen playback
 
     // Donor buffer
     juce::AudioBuffer<float> donorBuffer;
@@ -82,6 +92,7 @@ private:
     int  donorReadPos   = 0;
     bool donorRecording = false;
     bool hasDonor       = false;
+    bool donorFrozen    = false;
 
     // Grain state
     std::array<Grain, kMaxGrains> grains;

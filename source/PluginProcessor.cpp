@@ -11,7 +11,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     layout.add (std::make_unique<juce::AudioParameterFloat> ("formant",  "Formant",  0.0f, 1.0f, 0.5f));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("scatter",  "Scatter",  0.0f, 1.0f, 0.3f));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("drywet",   "Dry/Wet",  0.0f, 1.0f, 0.8f));
-    layout.add (std::make_unique<juce::AudioParameterBool>  ("recTrigger", "Record", false));
+    layout.add (std::make_unique<juce::AudioParameterBool>  ("recTrigger", "Record",  false));
+    layout.add (std::make_unique<juce::AudioParameterBool>  ("engage",     "Engage",  false));
 
     return layout;
 }
@@ -102,6 +103,7 @@ void PluginProcessor::changeProgramName (int index, const juce::String& newName)
 void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     spectralEngine.prepare (sampleRate, samplesPerBlock);
+    setLatencySamples (SpectralEngine::getLatencySamples());
 }
 
 void PluginProcessor::releaseResources()
@@ -150,6 +152,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     else
         spectralEngine.stopRecording();
 
+    spectralEngine.setEngage (apvts.getRawParameterValue ("engage")->load() > 0.5f);
+
     spectralEngine.process (buffer);
 }
 
@@ -167,16 +171,57 @@ juce::AudioProcessorEditor* PluginProcessor::createEditor()
 //==============================================================================
 void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    juce::MemoryOutputStream stream (destData, false);
+
+    // APVTS XML
     auto state = apvts.copyState();
-    std::unique_ptr<juce::XmlElement> xml (state.createXml());
-    copyXmlToBinary (*xml, destData);
+    auto xml = state.createXml();
+    auto xmlStr = xml->toString (juce::XmlElement::TextFormat().singleLine());
+    stream.writeInt (xmlStr.getNumBytesAsUTF8());
+    stream.write (xmlStr.toUTF8(), (size_t) xmlStr.getNumBytesAsUTF8());
+
+    // Donor buffer
+    const int donorLen = spectralEngine.getDonorLength();
+    stream.writeInt (donorLen);
+    if (donorLen > 0)
+    {
+        const auto& buf  = spectralEngine.getDonorBuffer();
+        const int   numCh = buf.getNumChannels();
+        stream.writeInt (numCh);
+        for (int c = 0; c < numCh; ++c)
+            stream.write (buf.getReadPointer (c), (size_t) donorLen * sizeof (float));
+    }
 }
 
 void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary (data, sizeInBytes));
-    if (xml != nullptr && xml->hasTagName (apvts.state.getType()))
-        apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    juce::MemoryInputStream stream (data, (size_t) sizeInBytes, false);
+
+    // APVTS XML
+    const int xmlLen = stream.readInt();
+    if (xmlLen > 0 && xmlLen < sizeInBytes)
+    {
+        juce::MemoryBlock xmlBlock;
+        stream.readIntoMemoryBlock (xmlBlock, xmlLen);
+        juce::String xmlStr (static_cast<const char*> (xmlBlock.getData()), (size_t) xmlLen);
+        if (auto xml = juce::XmlDocument::parse (xmlStr))
+            if (xml->hasTagName (apvts.state.getType()))
+                apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    }
+
+    // Donor buffer (optional — old presets without donor data load fine)
+    if (stream.isExhausted()) return;
+    const int donorLen = stream.readInt();
+    if (donorLen <= 0 || stream.isExhausted()) return;
+
+    const int numCh = stream.readInt();
+    if (numCh <= 0 || numCh > 2) return;
+
+    juce::AudioBuffer<float> buf (numCh, donorLen);
+    for (int c = 0; c < numCh; ++c)
+        stream.read (buf.getWritePointer (c), (int) ((size_t) donorLen * sizeof (float)));
+
+    spectralEngine.setDonorData (buf, donorLen);
 }
 
 //==============================================================================

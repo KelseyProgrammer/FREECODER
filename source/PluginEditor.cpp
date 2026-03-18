@@ -124,7 +124,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (recButton);
 
     engageButton.setLookAndFeel (laf.get());
-    engageButton.setEnabled (false); // decorative — Phase 4
+    engageButton.setClickingTogglesState (true);
     addAndMakeVisible (engageButton);
 
     inspectButton.setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff111111));
@@ -160,6 +160,9 @@ void PluginEditor::timerCallback()
         donorFillLevel = newLevel;
         repaint (displayBounds);
     }
+
+    // Repaint footswitch area when engage state changes so the label colour updates
+    repaint (engageButton.getBounds().expanded (0, 40));
 }
 
 //==============================================================================
@@ -296,13 +299,14 @@ void PluginEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (7.5f));
     g.drawText ("HOLD TO REC", recCx - 55, recBot + 22, 110, 12, juce::Justification::centred);
 
-    // ENGAGE label + sublabel (dim — inactive)
-    g.setColour (juce::Colour (0xff444444));
+    // ENGAGE label + sublabel
+    const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
+    g.setColour (isEngaged ? juce::Colour (0xff44ff44) : juce::Colours::white);
     g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
     g.drawText ("ENGAGE",    engCx - 55, engBot + 4,  110, 18, juce::Justification::centred);
-    g.setColour (juce::Colour (0xff333333));
+    g.setColour (juce::Colour (0xff555555));
     g.setFont (juce::FontOptions (7.5f));
-    g.drawText ("HOLD TO RETIME", engCx - 60, engBot + 22, 120, 12, juce::Justification::centred);
+    g.drawText ("FREEZE SPECTRUM", engCx - 60, engBot + 22, 120, 12, juce::Justification::centred);
 
     // "PLAY PHRASE" connecting line
     const int lineY = recBot + 15;

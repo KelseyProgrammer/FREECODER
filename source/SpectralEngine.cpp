@@ -11,6 +11,9 @@ SpectralEngine::SpectralEngine()
     liveEnvelope.resize  (kNumBins, 0.0f);
     donorMag.resize      (kNumBins, 0.0f);
     donorEnvelope.resize (kNumBins, 0.0f);
+    donorPhasePrev.resize  (kNumBins, 0.0f);
+    donorTrueFreq.resize   (kNumBins, 0.0f);
+    donorPhaseAccum.resize (kNumBins, 0.0f);
 
     donorBuffer.setSize (2, kMaxDonorSamples);
     donorBuffer.clear();
@@ -35,8 +38,12 @@ void SpectralEngine::prepare (double /*sampleRate*/, int /*blockSize*/)
 
     for (auto& gr : grains) gr.active = false;
 
-    std::fill (donorMag.begin(),      donorMag.end(),      0.0f);
-    std::fill (donorEnvelope.begin(), donorEnvelope.end(), 0.0f);
+    std::fill (donorMag.begin(),        donorMag.end(),        0.0f);
+    std::fill (donorEnvelope.begin(),   donorEnvelope.end(),   0.0f);
+    std::fill (donorPhasePrev.begin(),  donorPhasePrev.end(),  0.0f);
+    std::fill (donorTrueFreq.begin(),   donorTrueFreq.end(),   0.0f);
+    std::fill (donorPhaseAccum.begin(), donorPhaseAccum.end(), 0.0f);
+    donorFrozen = false;
 }
 
 //==============================================================================
@@ -64,6 +71,25 @@ void SpectralEngine::stopRecording()
 float SpectralEngine::getDonorFillLevel() const
 {
     return (float) donorLength / (float) kMaxDonorSamples;
+}
+
+void SpectralEngine::setDonorData (const juce::AudioBuffer<float>& buf, int length)
+{
+    const int safeLen = juce::jmin (length, kMaxDonorSamples);
+    const int numCh   = juce::jmin (buf.getNumChannels(), 2);
+
+    donorBuffer.clear();
+    for (int c = 0; c < numCh; ++c)
+        donorBuffer.copyFrom (c, 0, buf, c, 0, safeLen);
+
+    donorLength    = safeLen;
+    donorWritePos  = safeLen;
+    donorReadPos   = 0;
+    donorRecording = false;
+    hasDonor       = safeLen >= kFFTSize;
+
+    if (hasDonor)
+        analyseDonorFrame();
 }
 
 //==============================================================================
@@ -97,11 +123,23 @@ void SpectralEngine::analyseDonorFrame()
     window.multiplyWithWindowingTable (fftScratch.data(), (size_t) kFFTSize);
     fft.performRealOnlyForwardTransform (fftScratch.data(), false);
 
+    const float twoPi          = juce::MathConstants<float>::twoPi;
+    const float hopOverFFT     = (float) kHopSize / (float) kFFTSize;
+
     for (int k = 0; k < kNumBins; ++k)
     {
         const float re = fftScratch[2 * k];
         const float im = fftScratch[2 * k + 1];
         donorMag[k] = std::sqrt (re * re + im * im);
+
+        // True frequency estimation (phase vocoder)
+        const float phase          = std::atan2 (im, re);
+        const float expectedAdv    = twoPi * (float) k * hopOverFFT;
+        float       delta          = phase - donorPhasePrev[k] - expectedAdv;
+        delta -= twoPi * std::round (delta / twoPi);          // wrap to [-pi, pi]
+        donorTrueFreq[k]           = expectedAdv + delta;     // radians per hop
+        donorPhasePrev[k]          = phase;
+        donorPhaseAccum[k]         = phase;                   // resync to current frame
     }
 
     computeEnvelope (donorMag.data(), donorEnvelope.data(), kNumBins, 50);
@@ -150,8 +188,10 @@ void SpectralEngine::processFFTFrame (int chIdx)
             blended *= juce::jmax (0.0f, 1.0f + fm * (ratio - 1.0f));
         }
 
-        fftScratch[2 * k]     = blended * std::cos (inputPhase[k]);
-        fftScratch[2 * k + 1] = blended * std::sin (inputPhase[k]);
+        // When frozen: use self-sustaining donor phase for the spectral freeze effect
+        const float phase = (donorFrozen && hasDonor) ? donorPhaseAccum[k] : inputPhase[k];
+        fftScratch[2 * k]     = blended * std::cos (phase);
+        fftScratch[2 * k + 1] = blended * std::sin (phase);
     }
 
     // Mirror conjugate symmetry for real IFFT output
@@ -267,8 +307,17 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
 
             if (hasDonor && donorLength > 0)
             {
-                donorReadPos = (donorReadPos + kHopSize) % donorLength;
-                analyseDonorFrame();
+                if (donorFrozen)
+                {
+                    // Advance phase accumulators at true frequencies — spectrum rings freely
+                    for (int k = 0; k < kNumBins; ++k)
+                        donorPhaseAccum[k] += donorTrueFreq[k];
+                }
+                else
+                {
+                    donorReadPos = (donorReadPos + kHopSize) % donorLength;
+                    analyseDonorFrame();
+                }
             }
         }
 

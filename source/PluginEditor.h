@@ -44,7 +44,8 @@ private:
     SA grainAttachment   { processorRef.apvts, "grain",      grainSlider };
     SA scatterAttachment { processorRef.apvts, "scatter",    scatterSlider };
     SA formantAttachment { processorRef.apvts, "formant",    formantSlider };
-    BA recAttachment     { processorRef.apvts, "recTrigger", recButton };
+    BA recAttachment    { processorRef.apvts, "recTrigger", recButton };
+    BA engageAttachment { processorRef.apvts, "engage",     engageButton };
 
     // State updated by timer
     float donorFillLevel = 0.0f;
