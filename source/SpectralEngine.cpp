@@ -90,6 +90,7 @@ void SpectralEngine::setEngage (bool v) noexcept
     if (donorFrozen == v) return;
     donorFrozen = v;
     engageGain.setTargetValue (v ? 1.0f : 0.0f);
+    if (v) phraseReadPos = 0;  // restart phrase loop from beginning on each engage
     // OLA flush is deferred until the fade-out ramp completes in process()
 }
 
@@ -365,12 +366,16 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
         const float eg = engageGain.getNextValue();
         for (int c = 0; c < numCh; ++c)
         {
-            const float dry = buffer.getSample (c, i);
-            const float wet = (ch[c].outputQueuePos < kHopSize)
-                                  ? ch[c].outputQueue[ch[c].outputQueuePos++]
-                                  : 0.0f;
+            const float dry         = buffer.getSample (c, i);
+            const float spectralWet = (ch[c].outputQueuePos < kHopSize)
+                                          ? ch[c].outputQueue[ch[c].outputQueuePos++]
+                                          : 0.0f;
+            // Play Phrase: blend spectral freeze with raw donor loop; morph is the ratio
+            const float phraseOut   = donorBuffer.getSample (c, phraseReadPos % donorLength);
+            const float wet         = spectralWet * morph + phraseOut * (1.0f - morph);
             buffer.setSample (c, i, dry * (1.0f - dw * eg) + wet * dw * eg);
         }
+        phraseReadPos = (phraseReadPos + 1) % donorLength;
     }
 
     // Granular texture (added on top of morphed signal)
