@@ -22,7 +22,7 @@ public:
     void setGrain   (float v) noexcept { grain   = v; }
     void setFormant (float v) noexcept { formant = v; }
     void setScatter (float v) noexcept { scatter = v; }
-    void setEngage  (bool  v) noexcept { donorFrozen = v; }
+    void setEngage  (bool v) noexcept;  // defined in .cpp — flushes OLA on transition
 
     static constexpr int getLatencySamples() noexcept { return kFFTSize; }
 

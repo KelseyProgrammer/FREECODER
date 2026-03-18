@@ -68,6 +68,23 @@ void SpectralEngine::stopRecording()
         analyseDonorFrame();
 }
 
+void SpectralEngine::setEngage (bool v) noexcept
+{
+    if (donorFrozen == v) return;
+
+    // Flush OLA output buffers on every transition so no wet tail bleeds through
+    for (auto& cs : ch)
+    {
+        std::fill (cs.outputAccum.begin(), cs.outputAccum.end(), 0.0f);
+        std::fill (cs.outputQueue.begin(), cs.outputQueue.end(), 0.0f);
+        cs.outputQueuePos = kHopSize; // mark queue empty
+    }
+    for (auto& gr : grains)
+        gr.active = false;
+
+    donorFrozen = v;
+}
+
 float SpectralEngine::getDonorFillLevel() const
 {
     return (float) donorLength / (float) kMaxDonorSamples;
@@ -288,6 +305,25 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             stopRecording();
     }
 
+    // Gate: pass dry when not engaged or while recording (so you hear the source cleanly)
+    const bool shouldProcess = donorFrozen && hasDonor && !donorRecording;
+
+    if (!shouldProcess)
+    {
+        // Keep inputRing current so engage starts with up-to-date audio
+        for (int i = 0; i < numSamples; ++i)
+        {
+            for (int c = 0; c < numCh; ++c)
+            {
+                ch[c].inputRing[ch[c].inputWritePos] = buffer.getSample (c, i);
+                ch[c].inputWritePos = (ch[c].inputWritePos + 1) & (kFFTSize - 1);
+            }
+            if (++hopCount >= kHopSize)
+                hopCount = 0;
+        }
+        return; // dry passthrough — buffer unchanged
+    }
+
     // FFT overlap-add synthesis (per sample)
     const float dw = dryWet;
 
@@ -305,20 +341,9 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             for (int c = 0; c < numCh; ++c)
                 processFFTFrame (c);
 
-            if (hasDonor && donorLength > 0)
-            {
-                if (donorFrozen)
-                {
-                    // Advance phase accumulators at true frequencies — spectrum rings freely
-                    for (int k = 0; k < kNumBins; ++k)
-                        donorPhaseAccum[k] += donorTrueFreq[k];
-                }
-                else
-                {
-                    donorReadPos = (donorReadPos + kHopSize) % donorLength;
-                    analyseDonorFrame();
-                }
-            }
+            // Advance phase accumulators (frozen mode only)
+            for (int k = 0; k < kNumBins; ++k)
+                donorPhaseAccum[k] += donorTrueFreq[k];
         }
 
         for (int c = 0; c < numCh; ++c)
@@ -332,6 +357,6 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
     }
 
     // Granular texture (added on top of morphed signal)
-    if (hasDonor && grain > 0.0f)
+    if (grain > 0.0f)
         processGrains (buffer, numCh, numSamples);
 }
