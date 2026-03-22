@@ -138,8 +138,10 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
         return false;
 
     const auto in = layouts.getMainInputChannelSet();
-    // Must have matching input — donor recording always needs audio input
-    if (in != out)
+    // Accept no input (MIDI instrument mode, or standalone with no input device).
+    // Accept matching input (effect mode — stereo in / stereo out or mono / mono).
+    // Reject mismatched non-empty layouts (e.g. mono in + stereo out).
+    if (!in.isDisabled() && in != out)
         return false;
 
     return true;

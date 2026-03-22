@@ -110,6 +110,9 @@ void SpectralEngine::stopRecording()
 
     if (hasDonor)
     {
+        // Analyse from near the end of the recording — the most recently captured audio,
+        // not silence at position 0 which may precede the actual content.
+        donorReadPos = juce::jmax (0, donorLength - kFFTSize * 2);
         analyseDonorFrame();
         autoEngagePending.store (true);
 
@@ -651,6 +654,15 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             // Advance phase accumulators (frozen mode only)
             for (int k = 0; k < kNumBins; ++k)
                 donorPhaseAccum[k] += donorTrueFreq[k];
+
+            // Scrub donor read head through the recording when not frozen.
+            // This keeps the spectral snapshot current so FREEZE captures
+            // the audio at the moment of engage, not always sample 0.
+            if (hasDonor && !donorFrozen)
+            {
+                donorReadPos = (donorReadPos + kHopSize) % donorLength;
+                analyseDonorFrame();
+            }
         }
 
         const float dw = dryWetSmoothed.getNextValue();
