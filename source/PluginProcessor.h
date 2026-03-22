@@ -53,6 +53,11 @@ public:
         return spectralEngine.getSpectrumSnapshot (out);
     }
 
+    // Diagnostics — read by editor, written by audio thread
+    std::atomic<int> diagInputChannels { 0 };
+    std::atomic<int> diagBlockSize     { 0 };
+    std::atomic<int> diagBlockCount    { 0 };
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

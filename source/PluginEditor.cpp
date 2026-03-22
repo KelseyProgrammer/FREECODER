@@ -549,10 +549,17 @@ void PluginEditor::paint (juce::Graphics& g)
         }
     }
 
-    // ── Bottom branding ────────────────────────────────────────────────────────
+    // ── Bottom branding + diagnostics ──────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 1 . 0", 0, H - 16, W, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 1 . 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
+
+    // Diagnostic readout: input channels | block size | block count
+    g.setColour (juce::Colour (0xff333333));
+    g.drawText ("CH:" + juce::String (processorRef.diagInputChannels.load())
+                + " BS:" + juce::String (processorRef.diagBlockSize.load())
+                + " #" + juce::String (processorRef.diagBlockCount.load() % 10000),
+                W - 118, H - 16, 116, 14, juce::Justification::centredRight);
 }
 
 void PluginEditor::resized()

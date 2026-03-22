@@ -143,6 +143,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
+    diagInputChannels.store (totalNumInputChannels);
+    diagBlockSize.store     (buffer.getNumSamples());
+    diagBlockCount.fetch_add (1);
+
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
