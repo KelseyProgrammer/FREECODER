@@ -866,12 +866,17 @@ void PluginEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (8.0f));
     g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
-    // Diagnostic readout: input channels | block size | block count
+    // Diagnostic readout: input channels | block size | state flags
+    const bool hasDonor = processorRef.getDonorLength() > 0;
+    const bool engOn    = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
+    const bool isRec    = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
+    juce::String stateStr = juce::String (isRec ? "REC " : (hasDonor ? "READY " : "")) + (engOn ? "ENG" : "");
+    g.setColour (stateStr.isNotEmpty() ? juce::Colour (0xff44ff44) : juce::Colour (0xff222222));
+    g.drawText (stateStr, 4, H - 16, 80, 14, juce::Justification::centredLeft);
     g.setColour (juce::Colour (0xff333333));
     g.drawText ("CH:" + juce::String (processorRef.diagInputChannels.load())
-                + " BS:" + juce::String (processorRef.diagBlockSize.load())
-                + " #" + juce::String (processorRef.diagBlockCount.load() % 10000),
-                W - 118, H - 16, 116, 14, juce::Justification::centredRight);
+                + " BS:" + juce::String (processorRef.diagBlockSize.load()),
+                W - 80, H - 16, 78, 14, juce::Justification::centredRight);
 }
 
 void PluginEditor::resized()

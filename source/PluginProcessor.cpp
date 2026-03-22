@@ -85,9 +85,10 @@ bool PluginProcessor::isMidiEffect() const
 
 double PluginProcessor::getTailLengthSeconds() const
 {
-    // ENGAGE creates an indefinite spectral sustain; report a generous tail
-    // so DAWs don't cut playback before the effect has decayed
-    return spectralEngine.isEngaged() ? 30.0 : 0.0;
+    // Once a donor is loaded the plugin can produce output at any time (via ENGAGE).
+    // Report a generous tail so DAWs (FL Studio etc.) keep calling processBlock
+    // even after the input signal goes silent — otherwise ENGAGE fires into silence.
+    return spectralEngine.getDonorLength() > 0 ? 30.0 : 0.0;
 }
 
 int PluginProcessor::getNumPrograms()

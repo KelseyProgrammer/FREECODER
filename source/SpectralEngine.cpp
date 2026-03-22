@@ -114,6 +114,7 @@ void SpectralEngine::stopRecording()
         // not silence at position 0 which may precede the actual content.
         donorReadPos = juce::jmax (0, donorLength - kFFTSize * 2);
         analyseDonorFrame();
+        updateVisSnapshot();  // show captured spectrum in display immediately, before ENGAGE
         autoEngagePending.store (true);
 
         // Snapshot working buffer into the active slot (pre-allocated, no heap use)
