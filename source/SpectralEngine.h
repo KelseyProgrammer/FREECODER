@@ -33,12 +33,25 @@ public:
     int  getDonorLength() const noexcept { return donorLength; }
     void setDonorData (const juce::AudioBuffer<float>& buf, int length);
 
-private:
-    static constexpr int kFFTOrder        = 11;
-    static constexpr int kFFTSize         = 1 << kFFTOrder;  // 2048
-    static constexpr int kHopSize         = kFFTSize / 4;    // 512  (4x overlap)
-    static constexpr int kNumBins         = kFFTSize / 2 + 1; // 1025
     static constexpr int kMaxDonorSamples = 220500;           // ~5 sec @ 44100
+
+    // ── Spectrum visualizer ────────────────────────────────────────────────
+    // Audio thread writes non-blocking; UI thread reads with a lock.
+    static constexpr int kVisBins = 256;   // display resolution (bins, log-mapped)
+    struct SpectrumSnapshot
+    {
+        std::array<float, kVisBins> inputMag {};   // live input
+        std::array<float, kVisBins> donorMag {};   // donor
+        bool hasData = false;
+    };
+    // Returns the latest snapshot (always returns last good data — display doesn't flicker)
+    bool getSpectrumSnapshot (SpectrumSnapshot& out) const;
+
+private:
+    static constexpr int kFFTOrder = 11;
+    static constexpr int kFFTSize  = 1 << kFFTOrder;  // 2048
+    static constexpr int kHopSize  = kFFTSize / 4;    // 512  (4x overlap)
+    static constexpr int kNumBins  = kFFTSize / 2 + 1; // 1025
     static constexpr int kMaxGrains       = 16;
     static constexpr int kGrainSamples    = 2048;
 
@@ -84,12 +97,18 @@ private:
     int hopCount = 0;
 
     // Scratch buffers (audio thread only)
-    std::vector<float> fftScratch;    // 2 * kFFTSize
-    std::vector<float> inputMag;      // kNumBins
-    std::vector<float> inputPhase;    // kNumBins
-    std::vector<float> liveEnvelope;  // kNumBins
-    std::vector<float> donorMag;      // kNumBins
-    std::vector<float> donorEnvelope; // kNumBins
+    std::vector<float> fftScratch;       // 2 * kFFTSize
+    std::vector<float> inputMag;         // kNumBins
+    std::vector<float> inputPhase;       // kNumBins
+    std::vector<float> liveEnvelope;     // kNumBins
+    std::vector<float> donorMag;         // kNumBins
+    std::vector<float> donorEnvelope;    // kNumBins
+    mutable std::vector<float> envelopePrefix;   // kNumBins + 1  (reused by computeEnvelope)
+
+    // Spectrum visualiser — audio thread writes, UI thread reads
+    mutable juce::CriticalSection visLock;
+    mutable SpectrumSnapshot      visPending;
+    void updateVisSnapshot() noexcept;             // called from audio thread (ch 0 only)
     std::vector<float> donorPhasePrev;  // kNumBins — phase from last donor analysis
     std::vector<float> donorTrueFreq;   // kNumBins — estimated radians-per-hop per bin
     std::vector<float> donorPhaseAccum; // kNumBins — running phase for frozen playback

@@ -85,7 +85,7 @@ juce_add_plugin("${PROJECT_NAME}"
     PLUGIN_CODE Frcd
     PLUGIN_DESCRIPTION "Spectral Morphing Workstation"
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     FORMATS "${FORMATS}"
 

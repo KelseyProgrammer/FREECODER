@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "PresetManager.h"
 #include "BinaryData.h"
 #include "melatonin_inspector/melatonin_inspector.h"
 
@@ -54,6 +55,21 @@ private:
     // State updated by timer
     float donorFillLevel = 0.0f;
     juce::Rectangle<int> displayBounds;
+
+    // Spectrum visualizer
+    SpectralEngine::SpectrumSnapshot spectrumSnapshot;
+
+    // MIDI mode controls
+    juce::TextButton modeButton     { "EFFECT" };
+    juce::Slider     rootNoteSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
+    BA modeAttachment     { processorRef.apvts, "midiMode", modeButton };
+    SA rootNoteAttachment { processorRef.apvts, "rootNote", rootNoteSlider };
+
+    // Preset browser strip
+    PresetManager&   presetManager;
+    juce::TextButton prevPresetButton { "<" };
+    juce::TextButton nextPresetButton { ">" };
+    juce::TextButton savePresetButton { "SAVE" };
 
     // Dev inspector (tiny, tucked in corner)
     std::unique_ptr<melatonin::Inspector> inspector;

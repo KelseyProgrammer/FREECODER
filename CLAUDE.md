@@ -38,8 +38,8 @@ but uniquely shaped by whatever the user chose to record.
 | Plugin Code | `FRCD` |
 | Version | 0.1.0 |
 | Formats | VST3, AU (Standalone for dev) |
-| Plugin Type | Effect (not instrument) |
-| Accepts MIDI | No |
+| Plugin Type | Effect + MIDI Instrument |
+| Accepts MIDI | Yes |
 | Produces MIDI | No |
 | Num Input Channels | 2 (stereo) |
 | Num Output Channels | 2 (stereo) |
@@ -50,40 +50,48 @@ but uniquely shaped by whatever the user chose to record.
 
 ```
 FREECODER/
-├── CLAUDE.md                  ← this file
-├── CMakeLists.txt             ← main build config — plugin identity lives here
-├── JUCE/                      ← git submodule
-├── source/
-│   ├── PluginProcessor.h/.cpp ← audio engine — where all DSP lives
-│   ├── PluginEditor.h/.cpp    ← UI
-│   └── SpectralEngine.h/.cpp  ← core spectral morphing DSP class (to be created)
-├── tests/
-│   └── ...                    ← Catch2 unit tests
-└── packaging/
-    └── ...                    ← installers, signing (Pamplejuce defaults)
+├── FREECODER FILES/
+│   └── CLAUDE.md              ← mirror of project guide (kept outside pamplejuce/)
+└── pamplejuce/                ← active project root (Pamplejuce template)
+    ├── CLAUDE.md              ← this file
+    ├── CMakeLists.txt         ← main build config — plugin identity lives here
+    ├── JUCE/                  ← git submodule
+    ├── source/
+    │   ├── PluginProcessor.h/.cpp  ← audio engine, APVTS, state I/O
+    │   ├── PluginEditor.h/.cpp     ← UI (pedal-style, FreecoderLookAndFeel)
+    │   └── SpectralEngine.h/.cpp   ← all DSP: FFT OLA, granular, formant, phase vocoder
+    ├── tests/
+    │   ├── Catch2Main.cpp
+    │   ├── PluginBasics.cpp
+    │   └── SpectralEngineTests.cpp
+    └── packaging/
+        └── ...                ← installers, signing (Pamplejuce defaults)
 ```
 
 ---
 
-## CMakeLists.txt Customizations Required
+## CMakeLists.txt Configuration (as shipped)
 
-When editing `CMakeLists.txt`, make the following changes from the Pamplejuce defaults:
+All Pamplejuce defaults have been overridden. Current values:
 
-1. `PROJECT_NAME` → `FREECODER`
-2. `PLUGIN_NAME` → `"FREECODER"`
-3. `PLUGIN_MANUFACTURER_CODE` → `"AMNT"`
-4. `PLUGIN_CODE` → `"FRCD"`
-5. `PLUGIN_MANUFACTURER` → `"Ament Audio"`
-6. `PLUGIN_DESCRIPTION` → `"Spectral Morphing Workstation"`
-7. `IS_SYNTH` → `FALSE`
-8. `NEEDS_MIDI_INPUT` → `FALSE`
-9. `NEEDS_MIDI_OUTPUT` → `FALSE`
-10. Formats: keep `VST3 AU Standalone` (drop AUv3/AAX unless needed later)
-11. Add `juce_dsp` to `target_link_libraries` — required for FFT, filters, and convolution
+| Variable | Value |
+|---|---|
+| `PROJECT_NAME` | `FREECODER` |
+| `PLUGIN_NAME` | `"FREECODER"` |
+| `PLUGIN_MANUFACTURER_CODE` | `"AMNT"` |
+| `PLUGIN_CODE` | `"FRCD"` |
+| `PLUGIN_MANUFACTURER` | `"Ament Audio"` |
+| `PLUGIN_DESCRIPTION` | `"Spectral Morphing Workstation"` |
+| `IS_SYNTH` | `FALSE` |
+| `NEEDS_MIDI_INPUT` | `TRUE` |
+| `NEEDS_MIDI_OUTPUT` | `FALSE` |
+| Formats | `VST3 AU Standalone` |
+
+`juce_dsp` is included in `target_link_libraries` for FFT, windowing, filters, and the output limiter.
 
 ---
 
-## DSP Architecture (target state for v0.1)
+## DSP Architecture (as shipped v0.1)
 
 ### Buffers
 - `donorBuffer`: `juce::AudioBuffer<float>` — circular, holds the last N seconds of recorded audio
@@ -112,39 +120,45 @@ All parameters use `juce::AudioProcessorValueTreeState`.
 | `recTrigger` | Record | 0/1 | 0 | Toggle — starts/stops donor capture |
 | `engage` | Engage | 0/1 | 0 | Toggle — activates spectral freeze + phrase |
 | `reverse` | Reverse | 0/1 | 0 | Toggle — plays phrase loop backwards |
+| `midiMode` | MIDI Mode | 0/1 | 0 | Effect mode (0) vs MIDI instrument mode (1) |
+| `rootNote` | Root Note | 0–127 | 60 | MIDI note that maps to 0 semitone pitch shift |
 
 ---
 
-## UI Layout (PluginEditor — target v0.1)
+## UI Layout (PluginEditor — as shipped v0.1)
 
-Simple, functional layout. No fancy graphics in v0.1 — clean JUCE LookAndFeel.
+Pedal-inspired aesthetic: black background, neon green accents, `FreecoderLookAndFeel`.
 
 ```
-┌─────────────────────────────────────┐
-│  FREECODER            v0.1.0        │
-│                                     │
-│  [● REC]   Donor: [████████░░] 80%  │
-│                                     │
-│  MORPH  ○    GRAIN  ○    FORMANT ○  │
-│   0.50       0.00       0.50        │
-│                                     │
-│  SCATTER ○   DRY/WET ○              │
-│   0.30        0.80                  │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  FREECODER                        v0.1.0    │
+│                                             │
+│  phrase [━━━━━━━━━━━━━━━━━━━━━━] spectral   │  MORPH  (LinearHorizontal)
+│         [━━━━━━━━━━━━━━━━━━━━━━]            │  DRY/WET (LinearHorizontal)
+│                                             │
+│  ┌─────────────────────────────────────┐   │
+│  │  ∿∿∿∿  donor waveform display  ∿∿∿∿ │   │  live donor buffer, drawn by timer
+│  └─────────────────────────────────────┘   │
+│                                             │
+│  [GRAIN] [SCATTER] [FORMANT]  [PITCH]       │  RotaryVerticalDrag pad sliders
+│                                             │
+│  [● REC]          [ENGAGE]   [REVERSE]      │  footswitch TextButtons
+└─────────────────────────────────────────────┘
 ```
 
-- REC button triggers `recTrigger` parameter
-- Donor fill bar shows `donorFillLevel` (read from processor)
-- All knobs are `juce::Slider` (rotary) attached via APVTS SliderAttachment
+- MORPH and DRY/WET: `LinearHorizontal`, `NoTextBox`, strip-slider style
+- GRAIN / SCATTER / FORMANT / PITCH: `RotaryVerticalDrag`, `NoTextBox`
+- REC / ENGAGE / REVERSE: `juce::TextButton`, attached via APVTS `ButtonAttachment`
+- Waveform display: redraws every timer tick from `getDonorBuffer()` / `getDonorLength()`
+- Tiny `[i]` inspect button (melatonin inspector, dev only, tucked in corner)
 
 ---
 
-## Key JUCE Modules Needed
+## Key JUCE Modules (in `target_link_libraries`)
 
-Add these to `target_link_libraries` in CMakeLists.txt:
 - `juce::juce_audio_processors`
 - `juce::juce_audio_utils`
-- `juce::juce_dsp`          ← FFT, windowing, IIR filters
+- `juce::juce_dsp`          ← FFT, windowing, IIR filters, Limiter
 - `juce::juce_gui_basics`
 - `juce::juce_gui_extra`
 
@@ -232,6 +246,49 @@ cmake --build Builds --target FREECODER_Tests && ./Builds/tests/FREECODER_Tests
 - Introduces ~2048-sample latency (~46 ms at 44100 Hz), reported to host
 - PITCH: `rate = pow(2, semitones/12)`, fractional `phraseReadPosF` with linear interp
 - REVERSE: decrements `phraseReadPosF` by rate each sample, wraps around donorLength
+
+### Phase 6 — v0.2: Preset System + Visualizer (build first)
+
+**Strategic direction:** FREECODER's biggest differentiator is becoming a **MIDI-triggered playable instrument** — record any sound, play it chromatically with spectral freeze, granular texture, and formant transfer responding to MIDI in real-time. No other plugin combines the donor-recording workflow with MIDI pitch control + spectral freeze. The effect plugin market is saturated; the instrument market is where the novelty and profit are.
+
+**Build order:** Preset system → Visualizer → MIDI instrument mode → Custom graphics
+
+#### Step 1 — Preset System ✅ COMPLETE
+- [x] `PresetManager` class: save/load APVTS XML + donor buffer to `~/Documents/Ament Audio/FREECODER/Presets/`
+- [x] 10 factory presets (Init, Shimmer Pad, Grain Cloud, Formant Choir, Glitch Freeze, Deep Freeze, Subtle Texture, Octave Up, Octave Down, Scatter Storm)
+- [x] Preset browser strip in the UI: prev/next arrows, preset name display, save button
+- [x] Donor buffer included in user preset save (factory presets are param-only, preserving donor buffer)
+
+#### Step 2 — Visualizer ✅ COMPLETE
+- [x] Replace static waveform display with a dual-layer live FFT spectrum display
+- [x] Bottom layer: donor magnitude spectrum (green, filled)
+- [x] Top layer: live input magnitude spectrum (dim white outline) — shows morph happening in real-time
+- [x] CriticalSection tryEnter — audio thread skips update if UI is reading (no RT blocking)
+- [x] dB scale (-60 to 0 dBFS), 256 display bins, peak-hold within each bin
+- [x] Update rate: 30 Hz via existing timer; display persists last frame when idle
+
+#### Step 3 — MIDI Instrument Mode ✅ COMPLETE
+- [x] Accept MIDI input (`NEEDS_MIDI_INPUT TRUE` in CMakeLists.txt)
+- [x] `noteOn`: triggers ENGAGE + sets pitch relative to root note; last-note priority
+- [x] `noteOff`: disengages only if the released note matches the held note
+- [x] Mono (last-note priority) — `midiCurrentNote` audio-thread-only state
+- [x] `rootNote` param (0–127, default 60 = C4) — controls the "home" pitch
+- [x] `midiMode` bool param + EFFECT/MIDI toggle button in UI
+- [x] Effect mode preserves all pre-existing behaviour exactly
+- [x] `isBusesLayoutSupported` accepts zero inputs (pure instrument layout)
+- [x] `midiNoteToName()` helper; root note displayed as e.g. "ROOT: C4" in MIDI utility row
+
+#### Step 4 — Custom Graphics
+- [ ] Logo / wordmark (vector SVG → BinaryData)
+- [ ] Proper pedal faceplate texture (replace dot-grid background)
+- [ ] Custom knob skin for pad sliders (replace fill-rect with rendered knob image)
+- [ ] Footswitch rubber cap look (replace ellipse with bitmap or layered paint)
+
+#### Tech debt (ongoing)
+- [x] `setStateInformation` bounds check on `donorLen` — fixed in v0.1.1
+- [x] `computeEnvelope` stack allocation → `mutable envelopePrefix` member — fixed in v0.1.1
+- [ ] Replace `juce::TextButton` footswitches with custom painted toggle components
+- [ ] SIMD-optimise magnitude blend loop in `processFFTFrame`
 
 ---
 

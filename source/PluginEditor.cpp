@@ -114,8 +114,21 @@ public:
 
 PluginEditor::PluginEditor (PluginProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p),
-      laf (std::make_unique<FreecoderLookAndFeel>())
+      laf (std::make_unique<FreecoderLookAndFeel>()),
+      presetManager (p.getPresetManager())
 {
+    // ── Preset strip ────────────────────────────────────────────────────────
+    for (auto* btn : { &prevPresetButton, &nextPresetButton, &savePresetButton })
+    {
+        btn->setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff0a1a0a));
+        btn->setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
+        btn->setColour (juce::TextButton::textColourOffId, juce::Colour (0xff44ff44));
+        btn->setColour (juce::TextButton::textColourOnId,  juce::Colour (0xff44ff44));
+        addAndMakeVisible (btn);
+    }
+    prevPresetButton.onClick = [this] { presetManager.previousPreset(); repaint(); };
+    nextPresetButton.onClick = [this] { presetManager.nextPreset();     repaint(); };
+    savePresetButton.onClick = [this] { presetManager.promptSavePreset (this);     };
     for (auto* s : { &morphSlider, &drywetSlider })
     {
         s->setLookAndFeel (laf.get());
@@ -157,8 +170,20 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     };
     addAndMakeVisible (inspectButton);
 
+    // ── MIDI mode controls ──────────────────────────────────────────────────
+    modeButton.setClickingTogglesState (true);
+    modeButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
+    modeButton.setColour (juce::TextButton::buttonOnColourId,  juce::Colour (0xff0a2a2a));
+    modeButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff44ff44));
+    modeButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ffff));
+    addAndMakeVisible (modeButton);
+
+    rootNoteSlider.setRange (0.0, 127.0, 1.0);
+    rootNoteSlider.setVisible (false);   // hidden — driven via APVTS, shown as text in paint()
+    addAndMakeVisible (rootNoteSlider);
+
     startTimerHz (15);
-    setSize (540, 500);
+    setSize (540, 560);
 }
 
 PluginEditor::~PluginEditor()
@@ -174,16 +199,24 @@ void PluginEditor::timerCallback()
 {
     const float newLevel = processorRef.getDonorFillLevel();
     if (std::abs (newLevel - donorFillLevel) > 0.001f)
-    {
         donorFillLevel = newLevel;
-        repaint (displayBounds);
-    }
+
+    // Fetch latest spectrum (always repaint display for live visualizer)
+    processorRef.getSpectrumSnapshot (spectrumSnapshot);
+    repaint (displayBounds);
 
     // Repaint footswitch area when engage state changes so the label colour updates
     repaint (engageButton.getBounds().expanded (0, 40));
 }
 
 //==============================================================================
+static juce::String midiNoteToName (int note)
+{
+    // Standard MIDI: note 60 = C4 (middle C)
+    static const char* names[] = { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
+    return juce::String (names[note % 12]) + juce::String (note / 12 - 1);
+}
+
 static void drawDots (juce::Graphics& g, juce::Rectangle<int> area)
 {
     g.setColour (juce::Colour (0xff1b1b1b));
@@ -232,8 +265,17 @@ void PluginEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (7.5f));
     g.drawText ("AMENT | AUDIO", W - 110, 52, 100, 12, juce::Justification::centredRight);
 
+    // ── Preset strip ────────────────────────────────────────────────────────
+    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.15f));
+    g.fillRect (0, 68, W, 36);
+    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.20f));
+    g.drawLine (0, 104, (float) W, 104, 1.0f);
+
+    g.setColour (juce::Colour (0xff44ff44));
+    g.setFont (juce::FontOptions (12.0f).withStyle ("Bold"));
+    g.drawText (presetManager.getCurrentPresetName(), 52, 72, 362, 26, juce::Justification::centred);
+
     // ── Slider section ──────────────────────────────────────────────────────
-    // Left stacked labels (MORPH slider)
     auto drawSliderLabels = [&] (int lx, int ly, const juce::String& name)
     {
         g.setColour (juce::Colours::white);
@@ -241,20 +283,20 @@ void PluginEditor::paint (juce::Graphics& g)
         g.drawText (name, lx, ly, 100, 14, juce::Justification::centredLeft);
     };
 
-    drawSliderLabels (20,     72, "morph");
-    drawSliderLabels (W - 120, 72, "dry/wet");
+    drawSliderLabels (20,      108, "morph");
+    drawSliderLabels (W - 120, 108, "dry/wet");
 
     // Value readouts
     g.setColour (juce::Colour (0xff44ff44));
     g.setFont (juce::FontOptions (8.5f));
-    g.drawText (juce::String (morphSlider.getValue(),  2), 20,     125, 80, 12, juce::Justification::centredLeft);
-    g.drawText (juce::String (drywetSlider.getValue(), 2), W - 120, 125, 80, 12, juce::Justification::centredRight);
+    g.drawText (juce::String (morphSlider.getValue(),  2), 20,      161, 80, 12, juce::Justification::centredLeft);
+    g.drawText (juce::String (drywetSlider.getValue(), 2), W - 120, 161, 80, 12, juce::Justification::centredRight);
 
     // Morph endpoint labels: PHRASE (0) on left, SPECTRAL (1) on right
     g.setColour (juce::Colour (0xff333333));
     g.setFont (juce::FontOptions (7.0f));
-    g.drawText ("phrase",   20,      139, 80,  10, juce::Justification::centredLeft);
-    g.drawText ("spectral", 20,      139, 218, 10, juce::Justification::centredRight);
+    g.drawText ("phrase",   20,      175, 80,  10, juce::Justification::centredLeft);
+    g.drawText ("spectral", 20,      175, 218, 10, juce::Justification::centredRight);
 
     // ── Pad labels ──────────────────────────────────────────────────────────
     const int lpad1Y = grainSlider.getY()   + grainSlider.getHeight()   / 2 - 10;
@@ -287,50 +329,71 @@ void PluginEditor::paint (juce::Graphics& g)
                 displayBounds.getX(), displayBounds.getY() + 6,
                 displayBounds.getWidth(), 14, juce::Justification::centred);
 
-    // Waveform
+    // ── Spectrum visualizer ─────────────────────────────────────────────────
     {
-        const int dlen = processorRef.getDonorLength();
-        if (dlen > 0)
+        auto specArea = displayBounds.reduced (8, 8).withTrimmedTop (16).withTrimmedBottom (20);
+        const float bx    = (float) specArea.getX();
+        const float by    = (float) specArea.getY();
+        const float bw    = (float) specArea.getWidth();
+        const float bh    = (float) specArea.getHeight();
+        const float botY  = by + bh;
+        const int   nBins = SpectralEngine::kVisBins;
+
+        // Helper: magnitude (0–1 linear) → display height using dB scale (-60 to 0 dBFS)
+        auto magToY = [&] (float mag) -> float
         {
-            const auto& buf  = processorRef.getDonorBuffer();
-            auto waveArea    = displayBounds.reduced (8, 8).withTrimmedTop (16).withTrimmedBottom (20);
-            const float midY = waveArea.getCentreY();
-            const float half = waveArea.getHeight() * 0.45f;
-            const int   ww   = waveArea.getWidth();
+            if (mag < 1e-6f) return botY;
+            const float db   = 20.0f * std::log10 (mag);
+            const float norm = juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 60.0f);
+            return botY - norm * bh;
+        };
 
-            const bool isRecording = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
-            g.setColour (isRecording ? juce::Colour (0xff4a1a1a) : juce::Colour (0xff1a3d1a));
-
-            for (int px = 0; px < ww; ++px)
+        if (spectrumSnapshot.hasData)
+        {
+            // ── Donor spectrum (filled green) ──────────────────────────────
+            juce::Path donorPath;
+            donorPath.startNewSubPath (bx, botY);
+            for (int i = 0; i < nBins; ++i)
             {
-                const int s0 = (int) ((float) px       / (float) ww * (float) dlen);
-                const int s1 = (int) ((float) (px + 1) / (float) ww * (float) dlen);
-                float mn = 0.0f, mx = 0.0f;
-                for (int s = s0; s < s1 && s < dlen; ++s)
-                {
-                    const float v = buf.getSample (0, s);
-                    mn = juce::jmin (mn, v);
-                    mx = juce::jmax (mx, v);
-                }
-                const float y1 = midY - mx * half;
-                const float y2 = juce::jmax (y1 + 1.0f, midY - mn * half);
-                g.drawLine ((float) (waveArea.getX() + px), y1,
-                            (float) (waveArea.getX() + px), y2, 1.0f);
+                const float px = bx + (float) i / (float) nBins * bw;
+                donorPath.lineTo (px, magToY (spectrumSnapshot.donorMag[(size_t) i]));
             }
+            donorPath.lineTo (bx + bw, botY);
+            donorPath.closeSubPath();
 
-            // Percentage overlay (small, top-right corner of waveform area)
-            g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff44ff44));
-            g.setFont (juce::FontOptions (11.0f).withStyle ("Bold"));
-            g.drawText (juce::String ((int) (donorFillLevel * 100)) + "%",
-                        waveArea.getRight() - 36, waveArea.getY(), 34, 14,
-                        juce::Justification::centredRight);
+            g.setColour (juce::Colour (0xff163d16));
+            g.fillPath (donorPath);
+            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.75f));
+            g.strokePath (donorPath, juce::PathStrokeType (1.0f));
+
+            // ── Live input spectrum (white outline) ────────────────────────
+            juce::Path inputPath;
+            inputPath.startNewSubPath (bx, magToY (spectrumSnapshot.inputMag[0]));
+            for (int i = 1; i < nBins; ++i)
+            {
+                const float px = bx + (float) i / (float) nBins * bw;
+                inputPath.lineTo (px, magToY (spectrumSnapshot.inputMag[(size_t) i]));
+            }
+            g.setColour (juce::Colours::white.withAlpha (0.40f));
+            g.strokePath (inputPath, juce::PathStrokeType (1.5f));
         }
         else
         {
-            // No donor yet — just show placeholder
+            // No data yet
             g.setColour (juce::Colour (0xff1a3d1a));
             g.setFont (juce::FontOptions (28.0f).withStyle ("Bold"));
             g.drawText ("--", displayBounds.reduced (8, 16).toFloat(), juce::Justification::centred);
+        }
+
+        // Recording indicator / fill % (top-right corner of display)
+        const bool isRecording = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
+        if (isRecording || donorFillLevel > 0.001f)
+        {
+            g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff44ff44));
+            g.setFont (juce::FontOptions (11.0f).withStyle ("Bold"));
+            g.drawText (juce::String ((int) (donorFillLevel * 100)) + "%",
+                        specArea.getRight() - 36, specArea.getY(), 34, 14,
+                        juce::Justification::centredRight);
         }
     }
 
@@ -376,6 +439,29 @@ void PluginEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (7.0f));
     g.drawText ("PLAY PHRASE", recCx, lineY - 6, engCx - recCx, 12, juce::Justification::centred);
 
+    // ── MIDI utility row ────────────────────────────────────────────────────────
+    {
+        const bool isMidi = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+        // modeButton label updates to reflect current mode
+        const_cast<PluginEditor*>(this)->modeButton.setButtonText (isMidi ? "MIDI MODE" : "EFFECT MODE");
+
+        if (isMidi)
+        {
+            // Root note display: right of the mode button
+            const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
+            g.setColour (juce::Colour (0xff44ffff));
+            g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
+            g.drawText ("ROOT: " + midiNoteToName (root),
+                        W / 2 + 66, 498, 120, 22, juce::Justification::centredLeft);
+
+            // Hint text
+            g.setColour (juce::Colour (0xff2a4a4a));
+            g.setFont (juce::FontOptions (7.5f));
+            g.drawText ("AUTOMATE ROOT NOTE TO CHANGE KEY",
+                        0, 522, W, 12, juce::Justification::centred);
+        }
+    }
+
     // ── Bottom branding ────────────────────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f));
@@ -386,13 +472,19 @@ void PluginEditor::resized()
 {
     const int W = getWidth();
 
+    // ── Preset strip (below header, above sliders) ─────────────────────────────
+    prevPresetButton.setBounds (20,      72, 28, 26);
+    nextPresetButton.setBounds (418,     72, 28, 26);
+    savePresetButton.setBounds (452,     72, 68, 26);
+    // preset name drawn in paint() between x=52 and x=414
+
     // ── Top sliders ────────────────────────────────────────────────────────────
-    morphSlider.setBounds  (20,      90, 220, 32);
-    drywetSlider.setBounds (W - 240, 90, 220, 32);
+    morphSlider.setBounds  (20,      126, 220, 32);
+    drywetSlider.setBounds (W - 240, 126, 220, 32);
 
     // ── Pads ───────────────────────────────────────────────────────────────────
     const int padW  = 110, padH = 82;
-    const int pad1Y = 148, pad2Y = 244;
+    const int pad1Y = 184, pad2Y = 280;
     const int leftX  = 40;
     const int rightX = W - padW - 40;
 
@@ -408,10 +500,14 @@ void PluginEditor::resized()
 
     // ── Footswitches ────────────────────────────────────────────────────────────
     const int swSize = 88;
-    const int swY    = 350;
+    const int swY    = 386;
     recButton.setBounds     (W / 4 - swSize / 2,     swY, swSize, swSize);
     engageButton.setBounds  (3 * W / 4 - swSize / 2, swY, swSize, swSize);
     reverseButton.setBounds (W / 2 - 38, swY + swSize / 2 - 11, 76, 22);
+
+    // ── MIDI utility row ───────────────────────────────────────────────────────
+    modeButton.setBounds (W / 2 - 60, 498, 120, 22);
+    rootNoteSlider.setBounds (0, 0, 1, 1);  // hidden, just needs to exist for attachment
 
     // ── Inspector (tiny, top-right corner) ────────────────────────────────────
     inspectButton.setBounds (W - 18, 2, 16, 16);

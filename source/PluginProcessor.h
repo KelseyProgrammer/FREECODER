@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "SpectralEngine.h"
+#include "PresetManager.h"
 
 #if (MSVC)
 #include "ipps.h"
@@ -45,10 +46,19 @@ public:
     const juce::AudioBuffer<float>& getDonorBuffer() const { return spectralEngine.getDonorBuffer(); }
     int   getDonorLength()   const { return spectralEngine.getDonorLength(); }
 
+    PresetManager& getPresetManager() { return presetManager; }
+
+    bool getSpectrumSnapshot (SpectralEngine::SpectrumSnapshot& out)
+    {
+        return spectralEngine.getSpectrumSnapshot (out);
+    }
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     SpectralEngine spectralEngine;
+    PresetManager  presetManager;
+    int            midiCurrentNote = -1;  // -1 = no note held; audio thread only
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };

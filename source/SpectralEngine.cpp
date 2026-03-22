@@ -5,12 +5,13 @@ SpectralEngine::SpectralEngine()
     : fft    (kFFTOrder),
       window ((size_t) kFFTSize, juce::dsp::WindowingFunction<float>::hann, false)
 {
-    fftScratch.resize    (2 * kFFTSize, 0.0f);
-    inputMag.resize      (kNumBins, 0.0f);
-    inputPhase.resize    (kNumBins, 0.0f);
-    liveEnvelope.resize  (kNumBins, 0.0f);
-    donorMag.resize      (kNumBins, 0.0f);
-    donorEnvelope.resize (kNumBins, 0.0f);
+    fftScratch.resize     (2 * kFFTSize, 0.0f);
+    inputMag.resize       (kNumBins, 0.0f);
+    inputPhase.resize     (kNumBins, 0.0f);
+    liveEnvelope.resize   (kNumBins, 0.0f);
+    donorMag.resize       (kNumBins, 0.0f);
+    donorEnvelope.resize  (kNumBins, 0.0f);
+    envelopePrefix.resize (kNumBins + 1, 0.0f);
     donorPhasePrev.resize  (kNumBins, 0.0f);
     donorTrueFreq.resize   (kNumBins, 0.0f);
     donorPhaseAccum.resize (kNumBins, 0.0f);
@@ -120,19 +121,55 @@ void SpectralEngine::setDonorData (const juce::AudioBuffer<float>& buf, int leng
 }
 
 //==============================================================================
+//==============================================================================
+// Spectrum visualiser helpers
+//==============================================================================
+void SpectralEngine::updateVisSnapshot() noexcept
+{
+    if (!visLock.tryEnter()) return;
+
+    // Map kVisBins display bins to kNumBins FFT bins (skip DC at 0, skip Nyquist at end).
+    // Peak-hold within each display bin so thin peaks aren't lost.
+    const float norm = 1.0f / (float) kFFTSize;
+    for (int i = 0; i < kVisBins; ++i)
+    {
+        const int b0 = 1 + i       * (kNumBins - 2) / kVisBins;
+        const int b1 = 1 + (i + 1) * (kNumBins - 2) / kVisBins;
+        float mi = 0.0f, md = 0.0f;
+        for (int b = b0; b <= b1 && b < kNumBins; ++b)
+        {
+            mi = std::max (mi, inputMag[b]);
+            md = std::max (md, donorMag[b]);
+        }
+        visPending.inputMag[(size_t) i] = mi * norm;
+        visPending.donorMag[(size_t) i] = md * norm;
+    }
+    visPending.hasData = true;
+    visLock.exit();
+}
+
+bool SpectralEngine::getSpectrumSnapshot (SpectrumSnapshot& out) const
+{
+    juce::ScopedLock sl (visLock);
+    if (!visPending.hasData) return false;
+    out = visPending;
+    return true;   // deliberately does NOT clear hasData — display keeps last frame when idle
+}
+
+//==============================================================================
 // Spectral envelope via prefix-sum box filter (O(N) per call).
+// envelopePrefix is a pre-allocated member — no heap/stack allocation on the RT thread.
 void SpectralEngine::computeEnvelope (const float* mag, float* env, int numBins, int halfWindow) const
 {
-    std::array<float, kNumBins + 1> prefix;
-    prefix[0] = 0.0f;
+    envelopePrefix[0] = 0.0f;
     for (int k = 0; k < numBins; ++k)
-        prefix[k + 1] = prefix[k] + mag[k];
+        envelopePrefix[k + 1] = envelopePrefix[k] + mag[k];
 
     for (int k = 0; k < numBins; ++k)
     {
         const int lo = std::max (0, k - halfWindow);
         const int hi = std::min (numBins - 1, k + halfWindow);
-        env[k] = (prefix[hi + 1] - prefix[lo]) / (float) (hi - lo + 1);
+        env[k] = (envelopePrefix[hi + 1] - envelopePrefix[lo]) / (float) (hi - lo + 1);
     }
 }
 
@@ -193,6 +230,10 @@ void SpectralEngine::processFFTFrame (int chIdx)
         inputMag[k]   = std::sqrt (re * re + im * im);
         inputPhase[k] = std::atan2 (im, re);
     }
+
+    // Push a spectrum snapshot to the UI thread (ch 0 only, non-blocking)
+    if (chIdx == 0)
+        updateVisSnapshot();
 
     // Compute live spectral envelope (only when formant transfer is active)
     const float fm = formant;

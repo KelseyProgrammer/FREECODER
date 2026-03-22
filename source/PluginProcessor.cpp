@@ -15,6 +15,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     layout.add (std::make_unique<juce::AudioParameterBool>  ("engage",     "Engage",  false));
     layout.add (std::make_unique<juce::AudioParameterFloat> ("pitch",      "Pitch",   -12.0f, 12.0f, 0.0f));
     layout.add (std::make_unique<juce::AudioParameterBool>  ("reverse",    "Reverse", false));
+    layout.add (std::make_unique<juce::AudioParameterBool>  ("midiMode",   "MIDI Mode", false));
+    layout.add (std::make_unique<juce::AudioParameterInt>   ("rootNote",   "Root Note", 0, 127, 60));
 
     return layout;
 }
@@ -29,7 +31,8 @@ PluginProcessor::PluginProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        ),
-       apvts (*this, nullptr, "Parameters", createParameterLayout())
+       apvts (*this, nullptr, "Parameters", createParameterLayout()),
+       presetManager (apvts, spectralEngine)
 {
 }
 
@@ -120,14 +123,14 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
     juce::ignoreUnused (layouts);
     return true;
   #else
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    const auto out = layouts.getMainOutputChannelSet();
+    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
         return false;
 
-   #if ! JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+    const auto in = layouts.getMainInputChannelSet();
+    // Accept stereo/mono input (effect mode) OR no input (instrument mode)
+    if (in != juce::AudioChannelSet::disabled() && in != out)
         return false;
-   #endif
 
     return true;
   #endif
@@ -136,8 +139,6 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                     juce::MidiBuffer& midiMessages)
 {
-    juce::ignoreUnused (midiMessages);
-
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
@@ -145,20 +146,49 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    // Parameters that always apply regardless of mode
     spectralEngine.setMorph   (apvts.getRawParameterValue ("morph")->load());
     spectralEngine.setDryWet  (apvts.getRawParameterValue ("drywet")->load());
     spectralEngine.setGrain   (apvts.getRawParameterValue ("grain")->load());
     spectralEngine.setFormant (apvts.getRawParameterValue ("formant")->load());
     spectralEngine.setScatter (apvts.getRawParameterValue ("scatter")->load());
+    spectralEngine.setReverse (apvts.getRawParameterValue ("reverse")->load() > 0.5f);
 
     if (apvts.getRawParameterValue ("recTrigger")->load() > 0.5f)
         spectralEngine.startRecording();
     else
         spectralEngine.stopRecording();
 
-    spectralEngine.setEngage  (apvts.getRawParameterValue ("engage")->load() > 0.5f);
-    spectralEngine.setPitch   (apvts.getRawParameterValue ("pitch")->load());
-    spectralEngine.setReverse (apvts.getRawParameterValue ("reverse")->load() > 0.5f);
+    const bool midiMode = apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+
+    if (midiMode)
+    {
+        // MIDI instrument mode: ENGAGE and PITCH driven by incoming notes.
+        // Last-note priority; noteOff only disengages if the held note is released.
+        const int root = (int) apvts.getRawParameterValue ("rootNote")->load();
+        for (const auto& meta : midiMessages)
+        {
+            const auto msg = meta.getMessage();
+            if (msg.isNoteOn())
+            {
+                midiCurrentNote = msg.getNoteNumber();
+                spectralEngine.setPitch ((float) (midiCurrentNote - root));
+                spectralEngine.setEngage (true);
+            }
+            else if (msg.isNoteOff() && msg.getNoteNumber() == midiCurrentNote)
+            {
+                midiCurrentNote = -1;
+                spectralEngine.setEngage (false);
+            }
+        }
+    }
+    else
+    {
+        // Effect mode: ENGAGE and PITCH driven by UI / automation as before
+        midiCurrentNote = -1;
+        spectralEngine.setEngage (apvts.getRawParameterValue ("engage")->load() > 0.5f);
+        spectralEngine.setPitch  (apvts.getRawParameterValue ("pitch")->load());
+    }
 
     spectralEngine.process (buffer);
 }
@@ -218,7 +248,7 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
     // Donor buffer (optional — old presets without donor data load fine)
     if (stream.isExhausted()) return;
     const int donorLen = stream.readInt();
-    if (donorLen <= 0 || stream.isExhausted()) return;
+    if (donorLen <= 0 || donorLen > SpectralEngine::kMaxDonorSamples || stream.isExhausted()) return;
 
     const int numCh = stream.readInt();
     if (numCh <= 0 || numCh > 2) return;
