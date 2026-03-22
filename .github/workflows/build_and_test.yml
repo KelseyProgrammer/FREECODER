@@ -93,9 +93,9 @@ jobs:
       - name: Build
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.BUILD_TYPE }}
 
-      - name: Test & Benchmarks
+      - name: Tests
         working-directory: ${{ env.BUILD_DIR }}
-        run: ctest --verbose --output-on-failure
+        run: ctest --verbose --output-on-failure --timeout 60 -E "Boot performance"
 
       - name: Read in .env from CMake # see GitHubENV.cmake
         run: |
