@@ -14,6 +14,10 @@ public:
 
     void startRecording();
     void stopRecording();
+    void setRecordLimitSamples (int samples) noexcept { recordLimitSamples = samples; }
+
+    // Returns true (once) if recording just finished and auto-engage should fire
+    bool consumeAutoEngagePending() noexcept { return autoEngagePending.exchange (false); }
 
     float getDonorFillLevel() const;
 
@@ -24,16 +28,37 @@ public:
     void setScatter (float v) noexcept { scatterSmoothed.setTargetValue (v); }
     void setPitch   (float semitones) noexcept { pitchSmoothed.setTargetValue (semitones); }
     void setReverse (bool v) noexcept { reverse = v; }
-    void setEngage  (bool v) noexcept;  // defined in .cpp — flushes OLA on transition
+    void setEngage       (bool v) noexcept;  // spectral freeze
+    void setPhraseEngage (bool v) noexcept;  // phrase loop (independent of freeze)
+    void setEffectAdsr   (bool v) noexcept { effectAdsrEnabled = v; }
     bool isEngaged() const noexcept { return donorFrozen; }
+
+    // MIDI instrument mode — polyphonic (up to kMaxVoices simultaneous notes)
+    static constexpr int kMaxVoices = 8;
+    void setMidiMode       (bool v) noexcept;
+    void setAdsrParams     (float attack, float decay, float sustain, float release) noexcept;
+    void triggerMidiNoteOn (int noteNumber, float semitones, float velocity) noexcept;
+    void triggerMidiNoteOff(int noteNumber) noexcept;
 
     static constexpr int getLatencySamples() noexcept { return kFFTSize; }
 
     const juce::AudioBuffer<float>& getDonorBuffer() const noexcept { return donorBuffer; }
     int  getDonorLength() const noexcept { return donorLength; }
-    void setDonorData (const juce::AudioBuffer<float>& buf, int length);
+    void setDonorData    (const juce::AudioBuffer<float>& buf, int length);
+    void importDonorData (const juce::AudioBuffer<float>& buf, int length); // loads + saves to active slot
 
     static constexpr int kMaxDonorSamples = 220500;           // ~5 sec @ 44100
+    static constexpr int kNumDonorSlots   = 3;                // A / B / C
+
+    // Donor slot management (A=0, B=1, C=2)
+    void setActiveSlot  (int n) noexcept;
+    int  getActiveSlot  () const noexcept { return activeSlot; }
+    bool donorSlotHasData (int n) const noexcept
+    {
+        return (n >= 0 && n < kNumDonorSlots) && donorSlots[n].hasData;
+    }
+    const juce::AudioBuffer<float>& getDonorSlotBuffer (int n) const noexcept { return donorSlots[n].buf; }
+    int getDonorSlotLength (int n) const noexcept { return donorSlots[n].length; }
 
     // ── Spectrum visualizer ────────────────────────────────────────────────
     // Audio thread writes non-blocking; UI thread reads with a lock.
@@ -46,6 +71,17 @@ public:
     };
     // Returns the latest snapshot (always returns last good data — display doesn't flicker)
     bool getSpectrumSnapshot (SpectrumSnapshot& out) const;
+
+    // ── Tuner ──────────────────────────────────────────────────────────────
+    // FFT-based fundamental detection; updated every hop on ch 0.
+    struct TunerResult
+    {
+        float frequencyHz = 0.0f;
+        int   midiNote    = -1;
+        float centsOffset = 0.0f;   // -50 to +50 relative to nearest semitone
+        bool  hasData     = false;
+    };
+    bool getTunerResult (TunerResult& out) const;
 
 private:
     static constexpr int kFFTOrder = 11;
@@ -72,8 +108,30 @@ private:
     // Output limiter — prevents clipping at high morph/grain settings
     juce::dsp::Limiter<float> limiter;
 
-    // Engage crossfade gain (0 = dry, 1 = fully engaged)
-    juce::SmoothedValue<float> engageGain { 0.0f };
+    // Gain smoothers for the two independent engage paths (effect mode only)
+    juce::SmoothedValue<float> engageGain       { 0.0f };  // spectral freeze
+    juce::SmoothedValue<float> phraseEngageGain { 0.0f };  // phrase loop
+
+    // Optional ADSR envelope applied to the engage output in effect mode
+    juce::ADSR effectAdsr_;
+    bool       effectAdsrEnabled = false;
+    bool       effectAdsrOn      = false;   // tracks last noteOn state to avoid redundant calls
+
+    // MIDI instrument mode — per-voice state
+    struct MidiVoice
+    {
+        juce::ADSR adsr;
+        float      pitchRate  = 1.0f;   // pow(2, semitones/12)
+        float      phrasePos  = 0.0f;   // fractional donor playhead
+        float      velocity   = 1.0f;   // 0–1, scales voice amplitude
+        int        noteNumber = -1;
+        bool       active     = false;
+        void reset() noexcept { adsr.reset(); active = false; noteNumber = -1; }
+    };
+    std::array<MidiVoice, kMaxVoices> midiVoices;
+    juce::ADSR::Parameters            adsrParams;   // shared template for new voices
+    double                            storedSampleRate = 44100.0;
+    bool                              midiMode = false;
 
     // Per-channel OLA state
     struct ChannelState
@@ -109,18 +167,36 @@ private:
     mutable juce::CriticalSection visLock;
     mutable SpectrumSnapshot      visPending;
     void updateVisSnapshot() noexcept;             // called from audio thread (ch 0 only)
+
+    // Tuner — FFT-peak pitch detection, updated every hop on ch 0
+    mutable juce::CriticalSection tunerLock;
+    mutable TunerResult           tunerPending;
+    void updateTunerResult() noexcept;             // called from audio thread (ch 0 only)
     std::vector<float> donorPhasePrev;  // kNumBins — phase from last donor analysis
     std::vector<float> donorTrueFreq;   // kNumBins — estimated radians-per-hop per bin
     std::vector<float> donorPhaseAccum; // kNumBins — running phase for frozen playback
 
-    // Donor buffer
+    // Donor buffer (working state — always the active slot's audio)
     juce::AudioBuffer<float> donorBuffer;
-    int  donorWritePos  = 0;
-    int  donorLength    = 0;
+    int  donorWritePos      = 0;
+    int  donorLength        = 0;
+    int  recordLimitSamples = kMaxDonorSamples;
+    std::atomic<bool> autoEngagePending { false };
     int  donorReadPos   = 0;
-    bool  donorRecording  = false;
-    bool  hasDonor        = false;
+    bool donorRecording = false;
+    bool hasDonor       = false;
+
+    // Slot storage — pre-allocated so slot switch/save never touches the heap
+    struct DonorSlotData
+    {
+        juce::AudioBuffer<float> buf;
+        int  length  = 0;
+        bool hasData = false;
+    };
+    std::array<DonorSlotData, kNumDonorSlots> donorSlots;
+    int activeSlot = 0;
     bool  donorFrozen     = false;
+    bool  phraseEngaged   = false;   // phrase loop independently engaged
     bool  reverse         = false;   // play phrase in reverse
     float phraseReadPosF  = 0.0f;    // fractional playhead for pitch-shifted phrase loop
 

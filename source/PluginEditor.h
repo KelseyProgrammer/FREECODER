@@ -38,6 +38,7 @@ private:
     juce::TextButton recButton     { "REC" };
     juce::TextButton engageButton  { "ENGAGE" };
     juce::TextButton reverseButton { "REVERSE" };
+    juce::TextButton phraseButton  { "PHRASE" };
 
     // APVTS attachments
     using SA = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -48,22 +49,56 @@ private:
     SA scatterAttachment { processorRef.apvts, "scatter",    scatterSlider };
     SA formantAttachment { processorRef.apvts, "formant",    formantSlider };
     SA pitchAttachment   { processorRef.apvts, "pitch",      pitchSlider };
-    BA recAttachment     { processorRef.apvts, "recTrigger", recButton };
-    BA engageAttachment  { processorRef.apvts, "engage",     engageButton };
-    BA reverseAttachment { processorRef.apvts, "reverse",    reverseButton };
+    BA recAttachment     { processorRef.apvts, "recTrigger",   recButton };
+    BA engageAttachment  { processorRef.apvts, "engage",       engageButton };
+    BA reverseAttachment { processorRef.apvts, "reverse",      reverseButton };
+    BA phraseAttachment  { processorRef.apvts, "phraseEngage", phraseButton };
 
     // State updated by timer
     float donorFillLevel = 0.0f;
     juce::Rectangle<int> displayBounds;
 
-    // Spectrum visualizer
+    // Spectrum visualizer + tuner
     SpectralEngine::SpectrumSnapshot spectrumSnapshot;
+    SpectralEngine::TunerResult      tunerResult;
 
     // MIDI mode controls
     juce::TextButton modeButton     { "EFFECT" };
     juce::Slider     rootNoteSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
     BA modeAttachment     { processorRef.apvts, "midiMode", modeButton };
     SA rootNoteAttachment { processorRef.apvts, "rootNote", rootNoteSlider };
+
+    // ADSR knobs (visible only in MIDI mode)
+    juce::Slider adsrAttackSlider  { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    juce::Slider adsrDecaySlider   { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    juce::Slider adsrSustainSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    juce::Slider adsrReleaseSlider { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
+    SA adsrAttachA { processorRef.apvts, "adsrAttack",  adsrAttackSlider };
+    SA adsrAttachD { processorRef.apvts, "adsrDecay",   adsrDecaySlider };
+    SA adsrAttachS { processorRef.apvts, "adsrSustain", adsrSustainSlider };
+    SA adsrAttachR { processorRef.apvts, "adsrRelease", adsrReleaseSlider };
+
+    // Record length selector (small stepped slider near REC)
+    juce::Slider recLengthSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
+    SA recLengthAttachment { processorRef.apvts, "recLength", recLengthSlider };
+
+    // Auto-engage toggle
+    juce::TextButton autoEngageButton { "AUTO" };
+    BA autoEngageAttachment { processorRef.apvts, "autoEngage", autoEngageButton };
+
+    // Effect ADSR toggle (enables ADSR shaping of FREEZE engage in effect mode)
+    juce::TextButton effectAdsrButton { "ADSR" };
+    BA effectAdsrAttachment { processorRef.apvts, "effectAdsr", effectAdsrButton };
+
+    // Latch mode toggle (MIDI mode only)
+    juce::TextButton latchButton { "LATCH" };
+    BA latchAttachment { processorRef.apvts, "latch", latchButton };
+
+    // Donor slot buttons A / B / C + export
+    juce::TextButton slotButtonA { "A" }, slotButtonB { "B" }, slotButtonC { "C" };
+    juce::TextButton* slotButtons[SpectralEngine::kNumDonorSlots] { &slotButtonA, &slotButtonB, &slotButtonC };
+    juce::TextButton exportButton { "EXP" };
+    juce::TextButton importButton { "IMP" };
 
     // Preset browser strip
     PresetManager&   presetManager;

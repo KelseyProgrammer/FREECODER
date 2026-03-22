@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_formats/juce_audio_formats.h>
 #include "SpectralEngine.h"
 #include "PresetManager.h"
 
@@ -53,6 +54,22 @@ public:
         return spectralEngine.getSpectrumSnapshot (out);
     }
 
+    bool getTunerResult (SpectralEngine::TunerResult& out)
+    {
+        return spectralEngine.getTunerResult (out);
+    }
+
+    // Donor slot access for the UI
+    void requestSlot    (int n)  { requestedSlot.store (n); }
+    int  getActiveSlot  () const { return spectralEngine.getActiveSlot(); }
+    bool donorSlotHasData (int n) const { return spectralEngine.donorSlotHasData (n); }
+
+    // Export the active donor slot's audio to a WAV file chosen by the user
+    void exportActiveDonorSlotToWav();
+
+    // Import any audio file from disk as the donor for the active slot
+    void importDonorFromFile();
+
     // Diagnostics — read by editor, written by audio thread
     std::atomic<int> diagInputChannels { 0 };
     std::atomic<int> diagBlockSize     { 0 };
@@ -63,7 +80,9 @@ private:
 
     SpectralEngine spectralEngine;
     PresetManager  presetManager;
-    int            midiCurrentNote = -1;  // -1 = no note held; audio thread only
+    bool           prevRecTrigger   = false; // edge-detection for REC button; audio thread only
+    std::atomic<int> requestedSlot { 0 };   // UI writes; audio thread reads each block
+    int            currentSlot     = 0;     // audio thread only
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginProcessor)
 };

@@ -148,34 +148,81 @@ public:
                     juce::Justification::centred);
     }
 
-    // Footswitch button (large circle)
+    // Footswitch button — layered rubber dome with bevelled metal ring
     void drawButtonBackground (juce::Graphics& g, juce::Button& btn,
                                 const juce::Colour&, bool, bool isDown) override
     {
         auto b  = btn.getLocalBounds().toFloat().reduced (4.0f);
         float cx = b.getCentreX(), cy = b.getCentreY();
         float r  = juce::jmin (b.getWidth(), b.getHeight()) * 0.5f;
+        const bool lit = btn.getToggleState();
+
+        // Ambient glow when engaged
+        if (lit)
+        {
+            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.13f));
+            g.fillEllipse (cx - r - 6, cy - r - 6, (r + 6) * 2, (r + 6) * 2);
+        }
 
         // Drop shadow
-        g.setColour (juce::Colours::black.withAlpha (0.55f));
-        g.fillEllipse (cx - r + 2, cy - r + 3, r * 2, r * 2);
+        g.setColour (juce::Colours::black.withAlpha (0.70f));
+        g.fillEllipse (cx - r + 2, cy - r + 4, r * 2, r * 2);
 
-        // Outer metal ring
-        g.setColour (juce::Colour (isDown ? 0xff1a1a1au : 0xff3d3d3du));
-        g.fillEllipse (cx - r, cy - r, r * 2, r * 2);
+        // Bevelled outer metal ring
+        {
+            juce::ColourGradient ring (
+                juce::Colour (0xff555555), cx - r * 0.45f, cy - r * 0.75f,
+                juce::Colour (0xff181818), cx + r * 0.35f, cy + r * 0.65f, false);
+            g.setGradientFill (ring);
+            g.fillEllipse (cx - r, cy - r, r * 2, r * 2);
+        }
 
-        // Inner body
-        const bool lit = btn.getToggleState();
-        g.setColour (juce::Colour (lit ? 0xff0d2b0du : 0xff1c1c1cu));
-        g.fillEllipse (cx - r * 0.82f, cy - r * 0.82f, r * 1.64f, r * 1.64f);
+        // Inner shadow rim
+        g.setColour (juce::Colours::black.withAlpha (0.50f));
+        g.fillEllipse (cx - r * 0.90f, cy - r * 0.90f, r * 1.80f, r * 1.80f);
 
-        // Ring highlight
-        g.setColour (juce::Colour (0xff555555));
+        // Rubber dome body
+        {
+            const float dr = r * 0.82f;
+            const float pressY = isDown ? 1.5f : 0.0f;
+            juce::ColourGradient dome (
+                lit ? juce::Colour (0xff142814) : juce::Colour (0xff252525),
+                cx, cy - dr * 0.5f + pressY,
+                lit ? juce::Colour (0xff080f08) : juce::Colour (0xff0a0a0a),
+                cx, cy + dr * 0.65f + pressY, false);
+            g.setGradientFill (dome);
+            g.fillEllipse (cx - dr, cy - dr, dr * 2, dr * 2);
+        }
+
+        // Dome specular — convex highlight upper-left
+        if (!isDown)
+        {
+            juce::ColourGradient spec (
+                juce::Colours::white.withAlpha (0.28f), cx - r * 0.22f, cy - r * 0.68f,
+                juce::Colours::white.withAlpha (0.00f), cx + r * 0.10f, cy - r * 0.08f, false);
+            g.setGradientFill (spec);
+            g.fillEllipse (cx - r * 0.65f, cy - r * 0.88f, r * 1.25f, r * 0.82f);
+        }
+
+        // Outer ring stroke
+        g.setColour (juce::Colour (lit ? 0xff385038u : 0xff3a3a3au));
         g.drawEllipse (cx - r, cy - r, r * 2, r * 2, 1.5f);
 
-        // LED dot
-        g.setColour (juce::Colour (lit ? 0xff44ff44u : 0xff0a2a0au));
-        g.fillEllipse (cx - 5, cy - r * 0.65f, 10, 10);
+        // LED
+        const float ledR = 5.0f;
+        const float ledY = cy - r * 0.62f;
+        if (lit)
+        {
+            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.45f));
+            g.fillEllipse (cx - ledR - 3, ledY - 3, (ledR + 3) * 2, (ledR + 3) * 2);
+        }
+        g.setColour (juce::Colour (lit ? 0xff88ff88u : 0xff0b250bu));
+        g.fillEllipse (cx - ledR, ledY, ledR * 2, ledR * 2);
+        if (lit)  // LED specular
+        {
+            g.setColour (juce::Colours::white.withAlpha (0.55f));
+            g.fillEllipse (cx - ledR * 0.45f, ledY + ledR * 0.12f, ledR * 0.55f, ledR * 0.42f);
+        }
     }
 
     // Suppress default button text (we draw it in paint())
@@ -223,7 +270,15 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     engageButton.setLookAndFeel (laf.get());
     engageButton.setClickingTogglesState (true);
+    engageButton.setButtonText ("FREEZE");
     addAndMakeVisible (engageButton);
+
+    phraseButton.setClickingTogglesState (true);
+    phraseButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
+    phraseButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
+    phraseButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
+    phraseButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
+    addAndMakeVisible (phraseButton);
 
     reverseButton.setClickingTogglesState (true);
     reverseButton.setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff0a1a0a));
@@ -256,14 +311,87 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     rootNoteSlider.setVisible (false);   // hidden — driven via APVTS, shown as text in paint()
     addAndMakeVisible (rootNoteSlider);
 
+    // Latch button
+    latchButton.setClickingTogglesState (true);
+    latchButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
+    latchButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff0a2a2a));
+    latchButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
+    latchButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ffff));
+    latchButton.setVisible (false);   // shown only in MIDI mode
+    addAndMakeVisible (latchButton);
+
+    // Donor slot buttons
+    for (int i = 0; i < SpectralEngine::kNumDonorSlots; ++i)
+    {
+        slotButtons[i]->setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
+        slotButtons[i]->setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
+        slotButtons[i]->setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
+        slotButtons[i]->setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
+        slotButtons[i]->onClick = [this, i] { processorRef.requestSlot (i); };
+        addAndMakeVisible (slotButtons[i]);
+    }
+
+    // Export donor to WAV
+    exportButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a0a1a));
+    exportButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a1a5a));
+    exportButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff4466ff));
+    exportButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff88aaff));
+    exportButton.onClick = [this] { processorRef.exportActiveDonorSlotToWav(); };
+    addAndMakeVisible (exportButton);
+
+    // Import donor from file
+    importButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a0a1a));
+    importButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a1a5a));
+    importButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff4466ff));
+    importButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff88aaff));
+    importButton.onClick = [this] { processorRef.importDonorFromFile(); };
+    addAndMakeVisible (importButton);
+
+    // Auto-engage toggle
+    autoEngageButton.setClickingTogglesState (true);
+    autoEngageButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
+    autoEngageButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
+    autoEngageButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
+    autoEngageButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
+    addAndMakeVisible (autoEngageButton);
+
+    // Effect ADSR toggle
+    effectAdsrButton.setClickingTogglesState (true);
+    effectAdsrButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
+    effectAdsrButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
+    effectAdsrButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
+    effectAdsrButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
+    addAndMakeVisible (effectAdsrButton);
+
+    // Rec length: stepped 1/2/3/5s, drawn as labelled ticks in paint()
+    recLengthSlider.setRange (1.0, 5.0, 1.0);
+    recLengthSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a2a0a));
+    recLengthSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff44ff44));
+    recLengthSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080808));
+    addAndMakeVisible (recLengthSlider);
+
+    // ADSR knobs — same look as the pad knobs, hidden until MIDI mode is on
+    for (auto* s : { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider })
+    {
+        s->setLookAndFeel (laf.get());
+        s->setVisible (false);
+        addAndMakeVisible (s);
+    }
+    adsrAttackSlider.setRange  (0.001, 5.0,  0.001);
+    adsrDecaySlider.setRange   (0.001, 5.0,  0.001);
+    adsrSustainSlider.setRange (0.0,   1.0,  0.01);
+    adsrReleaseSlider.setRange (0.001, 10.0, 0.001);
+
     startTimerHz (15);
-    setSize (540, 560);
+    setSize (540, 600);
 }
 
 PluginEditor::~PluginEditor()
 {
     stopTimer();
     for (auto* s : { &morphSlider, &drywetSlider, &grainSlider, &scatterSlider, &formantSlider, &pitchSlider })
+        s->setLookAndFeel (nullptr);
+    for (auto* s : { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider })
         s->setLookAndFeel (nullptr);
     recButton.setLookAndFeel (nullptr);
     engageButton.setLookAndFeel (nullptr);
@@ -275,12 +403,38 @@ void PluginEditor::timerCallback()
     if (std::abs (newLevel - donorFillLevel) > 0.001f)
         donorFillLevel = newLevel;
 
-    // Fetch latest spectrum (always repaint display for live visualizer)
+    // Fetch latest spectrum + tuner result
     processorRef.getSpectrumSnapshot (spectrumSnapshot);
+    processorRef.getTunerResult (tunerResult);
     repaint (displayBounds);
 
     // Repaint footswitch area when engage state changes so the label colour updates
     repaint (engageButton.getBounds().expanded (0, 40));
+
+    // Show/hide mode-specific controls
+    const bool isMidi      = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+    const bool effectAdsr  = processorRef.apvts.getRawParameterValue ("effectAdsr")->load() > 0.5f;
+    const bool showAdsr    = isMidi || effectAdsr;
+    for (auto* s : { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider })
+        s->setVisible (showAdsr);
+    latchButton.setVisible (isMidi);
+    phraseButton.setVisible (!isMidi);
+    effectAdsrButton.setVisible (!isMidi);  // ADSR toggle only makes sense in effect mode
+
+    // Update slot button colours: active = bright green, has data = dim, empty = dark
+    const int activeSlot = processorRef.getActiveSlot();
+    for (int i = 0; i < SpectralEngine::kNumDonorSlots; ++i)
+    {
+        const bool isActive  = (i == activeSlot);
+        const bool hasData   = processorRef.donorSlotHasData (i);
+        slotButtons[i]->setColour (juce::TextButton::textColourOffId,
+                                   isActive  ? juce::Colour (0xff44ff44) :
+                                   hasData   ? juce::Colour (0xff2a7a2a) :
+                                               juce::Colour (0xff2a2a2a));
+        slotButtons[i]->setColour (juce::TextButton::buttonColourId,
+                                   isActive  ? juce::Colour (0xff0d2a0d) :
+                                               juce::Colour (0xff0a0a0a));
+    }
 }
 
 //==============================================================================
@@ -291,12 +445,52 @@ static juce::String midiNoteToName (int note)
     return juce::String (names[note % 12]) + juce::String (note / 12 - 1);
 }
 
-static void drawDots (juce::Graphics& g, juce::Rectangle<int> area)
+// Horizontal brushed-metal scan lines — replaces dot grid
+static void drawFaceplateTexture (juce::Graphics& g, juce::Rectangle<int> area)
 {
-    g.setColour (juce::Colour (0xff1b1b1b));
-    for (int dy = area.getY() + 6; dy < area.getBottom(); dy += 12)
-        for (int dx = area.getX() + 6; dx < area.getRight(); dx += 12)
-            g.fillEllipse ((float) dx - 1.5f, (float) dy - 1.5f, 3.0f, 3.0f);
+    for (int y = area.getY(); y < area.getBottom(); y += 3)
+    {
+        const float a = (y % 9 == 0) ? 0.022f : 0.009f;
+        g.setColour (juce::Colours::white.withAlpha (a));
+        g.drawHorizontalLine (y, (float) area.getX(), (float) area.getRight());
+    }
+}
+
+// Phillips-head screw — decorative corner element
+static void drawScrew (juce::Graphics& g, float cx, float cy, float r)
+{
+    // Shadow
+    g.setColour (juce::Colours::black.withAlpha (0.65f));
+    g.fillEllipse (cx - r + 1.0f, cy - r + 1.5f, r * 2.0f, r * 2.0f);
+
+    // Outer rim (bevelled)
+    {
+        juce::ColourGradient rim (
+            juce::Colour (0xff4a4a4a), cx - r * 0.4f, cy - r * 0.7f,
+            juce::Colour (0xff191919), cx + r * 0.3f, cy + r * 0.6f, false);
+        g.setGradientFill (rim);
+        g.fillEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f);
+    }
+
+    // Inner face
+    {
+        juce::ColourGradient face (
+            juce::Colour (0xff2e2e2e), cx - r * 0.1f, cy - r * 0.6f,
+            juce::Colour (0xff0e0e0e), cx + r * 0.1f, cy + r * 0.5f, false);
+        g.setGradientFill (face);
+        const float ir = r * 0.70f;
+        g.fillEllipse (cx - ir, cy - ir, ir * 2.0f, ir * 2.0f);
+    }
+
+    // Phillips cross slots
+    g.setColour (juce::Colour (0xff484848));
+    const float sl = r * 0.46f, sw = r * 0.11f;
+    g.fillRect (cx - sw, cy - sl, sw * 2.0f, sl * 2.0f);
+    g.fillRect (cx - sl, cy - sw, sl * 2.0f, sw * 2.0f);
+
+    // Specular dot
+    g.setColour (juce::Colours::white.withAlpha (0.17f));
+    g.fillEllipse (cx - r * 0.33f, cy - r * 0.62f, r * 0.36f, r * 0.26f);
 }
 
 
@@ -311,7 +505,15 @@ void PluginEditor::paint (juce::Graphics& g)
         g.setGradientFill (bg);
         g.fillAll();
     }
-    drawDots (g, { 0, 104, W, H - 104 });
+    drawFaceplateTexture (g, { 0, 104, W, H - 104 });
+
+    // Corner screws (4 corners — classic pedal enclosure look)
+    const float screwR  = 7.0f;
+    const float screwM  = 11.0f;
+    drawScrew (g, screwM,       screwM,       screwR);
+    drawScrew (g, (float)W - screwM, screwM,       screwR);
+    drawScrew (g, screwM,       (float)H - screwM, screwR);
+    drawScrew (g, (float)W - screwM, (float)H - screwM, screwR);
 
     // ── Header panel ────────────────────────────────────────────────────────
     {
@@ -410,9 +612,21 @@ void PluginEditor::paint (juce::Graphics& g)
     const int rpad2Y = pitchSlider.getY() + pitchSlider.getHeight() / 2 - 10;
     g.drawText ("pitch",   rpRight + 4, rpad2Y, W - rpRight - 6, 20, juce::Justification::centredLeft);
 
-    // ── Centre display ───────────────────────────────────────────────────────
-    g.setColour (juce::Colour (0xff060606));
-    g.fillRoundedRectangle (displayBounds.toFloat(), 8.0f);
+    // ── Centre display (sunken LCD panel look) ───────────────────────────────
+    // Outer shadow bevel
+    g.setColour (juce::Colours::black.withAlpha (0.60f));
+    g.fillRoundedRectangle (displayBounds.expanded (2).toFloat(), 9.0f);
+    // Panel body
+    {
+        juce::ColourGradient panel (
+            juce::Colour (0xff050a05), (float) displayBounds.getX(), (float) displayBounds.getY(),
+            juce::Colour (0xff030703), (float) displayBounds.getX(), (float) displayBounds.getBottom(), false);
+        g.setGradientFill (panel);
+        g.fillRoundedRectangle (displayBounds.toFloat(), 8.0f);
+    }
+    // Inner highlight (top edge — light catches the inset lip)
+    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.18f));
+    g.drawRoundedRectangle (displayBounds.toFloat().reduced (0.5f), 8.0f, 1.0f);
     g.setColour (juce::Colour (0xff1a441a));
     g.drawRoundedRectangle (displayBounds.toFloat(), 8.0f, 1.5f);
 
@@ -516,14 +730,66 @@ void PluginEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (7.5f));
     g.drawText ("CLICK TO RECORD", recCx - 55, recBot + 22, 110, 12, juce::Justification::centred);
 
-    // ENGAGE label + sublabel
+    // Rec length labels: 1s / 2s / 3s / 5s ticks above slider
+    {
+        const int sliderX = recCx - 52;
+        const int sliderW = 104;
+        const int labelY  = recLengthSlider.getY() - 13;
+        // 4 stops at positions 1,2,3,5 mapped into [1,5] range → normalized 0,0.25,0.5,1.0
+        static const float stops[]  = { 0.0f, 0.25f, 0.5f, 1.0f };
+        static const char* labels[] = { "1s", "2s", "3s", "5s" };
+        g.setFont (juce::FontOptions (7.5f));
+        for (int t = 0; t < 4; ++t)
+        {
+            const int tx = sliderX + (int) (stops[t] * sliderW);
+            g.setColour (juce::Colour (0xff444444));
+            g.fillRect (tx, recLengthSlider.getY() - 4, 1, 4);
+            g.setColour (juce::Colour (0xff555555));
+            g.drawText (labels[t], tx - 8, labelY, 16, 12, juce::Justification::centred);
+        }
+
+        // Current value highlight
+        const float recSecs = (float) recLengthSlider.getValue();
+        const juce::String recLabel = juce::String ((int) recSecs) + "s";
+        g.setColour (juce::Colour (0xff44ff44));
+        g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
+        g.drawText (recLabel, recCx - 20, recLengthSlider.getBottom() + 2, 40, 12, juce::Justification::centred);
+
+        // AUTO button label
+        g.setColour (juce::Colour (0xff555555));
+        g.setFont (juce::FontOptions (7.0f));
+        g.drawText ("AUTO ENGAGE", recCx - 40, autoEngageButton.getBottom() + 2, 80, 10, juce::Justification::centred);
+
+        // LATCH label
+        const bool isLatched = processorRef.apvts.getRawParameterValue ("latch")->load() > 0.5f;
+        g.setColour (isLatched ? juce::Colour (0xff44ffff) : juce::Colour (0xff555555));
+        g.setFont (juce::FontOptions (7.0f));
+        g.drawText ("HOLD NOTES", latchButton.getX() - 4, latchButton.getBottom() + 2,
+                    latchButton.getWidth() + 8, 10, juce::Justification::centred);
+    }
+
+    // FREEZE label + sublabel
     const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
     g.setColour (isEngaged ? juce::Colour (0xff44ff44) : juce::Colours::white);
     g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
-    g.drawText ("ENGAGE",    engCx - 55, engBot + 4,  110, 18, juce::Justification::centred);
+    g.drawText ("FREEZE",    engCx - 55, engBot + 4,  110, 18, juce::Justification::centred);
     g.setColour (juce::Colour (0xff555555));
     g.setFont (juce::FontOptions (7.5f));
-    g.drawText ("FREEZE SPECTRUM", engCx - 60, engBot + 22, 120, 12, juce::Justification::centred);
+    g.drawText ("SPECTRAL FREEZE", engCx - 60, engBot + 22, 120, 12, juce::Justification::centred);
+
+    // PHRASE button label (effect mode only)
+    {
+        const bool isMidi2    = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+        const bool isPhrased  = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
+        if (!isMidi2)
+        {
+            g.setColour (isPhrased ? juce::Colour (0xff44ff44) : juce::Colour (0xff555555));
+            g.setFont (juce::FontOptions (7.0f));
+            g.drawText ("PHRASE LOOP",
+                        phraseButton.getX() - 4, phraseButton.getBottom() + 2,
+                        phraseButton.getWidth() + 8, 10, juce::Justification::centred);
+        }
+    }
 
 
     // ── MIDI utility row ────────────────────────────────────────────────────────
@@ -541,18 +807,64 @@ void PluginEditor::paint (juce::Graphics& g)
             g.drawText ("ROOT: " + midiNoteToName (root),
                         W / 2 + 66, 498, 120, 22, juce::Justification::centredLeft);
 
-            // Hint text
-            g.setColour (juce::Colour (0xff2a4a4a));
-            g.setFont (juce::FontOptions (7.5f));
-            g.drawText ("AUTOMATE ROOT NOTE TO CHANGE KEY",
-                        0, 522, W, 12, juce::Justification::centred);
+            // Tuner: live pitch of input signal (left of the mode button)
+            if (tunerResult.hasData)
+            {
+                const float cents = tunerResult.centsOffset;
+                // Colour: green if close to a note, amber if slightly off, red if far
+                const juce::Colour tunerCol = std::abs (cents) < 10.0f ? juce::Colour (0xff44ff44)
+                                            : std::abs (cents) < 25.0f ? juce::Colour (0xffffaa00)
+                                                                        : juce::Colour (0xffff4444);
+                g.setColour (tunerCol);
+                g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
+                const juce::String centsStr = (cents >= 0.0f ? "+" : "") + juce::String ((int) cents) + "c";
+                g.drawText (midiNoteToName (tunerResult.midiNote) + " " + centsStr,
+                            10, 498, W / 2 - 70, 22, juce::Justification::centredRight);
+                g.setColour (juce::Colour (0xff333333));
+                g.setFont (juce::FontOptions (7.5f));
+                g.drawText ("INPUT", 10, 510, W / 2 - 70, 10, juce::Justification::centredRight);
+            }
+
+            // ADSR labels below each knob (MIDI mode)
+            g.setColour (juce::Colours::white);
+            g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
+            const int kw = 44, gap = 16;
+            const int rowX = (W - 4 * kw - 3 * gap) / 2;
+            const int labelY = 526 + kw + 3;
+            static const char* labels[] = { "ATK", "DEC", "SUS", "REL" };
+            for (int i = 0; i < 4; ++i)
+                g.drawText (labels[i], rowX + i * (kw + gap), labelY, kw, 12,
+                            juce::Justification::centred);
+        }
+        else
+        {
+            // Effect mode — show ADSR labels if effectAdsr is on
+            const bool showEffAdsr = processorRef.apvts.getRawParameterValue ("effectAdsr")->load() > 0.5f;
+            if (showEffAdsr)
+            {
+                g.setColour (juce::Colours::white);
+                g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
+                const int kw = 44, gap = 16;
+                const int rowX = (W - 4 * kw - 3 * gap) / 2;
+                const int labelY = 526 + kw + 3;
+                static const char* effLabels[] = { "ATK", "DEC", "SUS", "REL" };
+                for (int i = 0; i < 4; ++i)
+                    g.drawText (effLabels[i], rowX + i * (kw + gap), labelY, kw, 12,
+                                juce::Justification::centred);
+            }
+
+            // effectAdsrButton label
+            g.setColour (showEffAdsr ? juce::Colour (0xff44ff44) : juce::Colour (0xff555555));
+            g.setFont (juce::FontOptions (7.0f));
+            g.drawText ("ENV SHAPE", effectAdsrButton.getX() - 6, effectAdsrButton.getBottom() + 2,
+                        effectAdsrButton.getWidth() + 12, 10, juce::Justification::centred);
         }
     }
 
     // ── Bottom branding + diagnostics ──────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 1 . 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
     // Diagnostic readout: input channels | block size | block count
     g.setColour (juce::Colour (0xff333333));
@@ -592,16 +904,52 @@ void PluginEditor::resized()
     const int dispW = rightX - dispX - 14;
     displayBounds   = { dispX, pad1Y, dispW, pad2Y + padH - pad1Y };
 
+    // ── Donor slot buttons (A/B/C) + export below the display ──────────────────
+    {
+        const int btnW  = 36, btnH = 16, gap = 8;
+        const int totalW = 3 * btnW + 2 * gap;
+        const int startX = displayBounds.getCentreX() - totalW / 2;
+        const int btnY   = displayBounds.getBottom() + 4;
+        for (int i = 0; i < SpectralEngine::kNumDonorSlots; ++i)
+            slotButtons[i]->setBounds (startX + i * (btnW + gap), btnY, btnW, btnH);
+        // Import to the left of slot A, export to the right of slot C
+        importButton.setBounds (startX - (btnW + gap), btnY, btnW, btnH);
+        exportButton.setBounds (startX + 3 * (btnW + gap), btnY, btnW, btnH);
+    }
+
     // ── Footswitches ────────────────────────────────────────────────────────────
     const int swSize = 88;
     const int swY    = 386;
     recButton.setBounds     (W / 4 - swSize / 2,     swY, swSize, swSize);
     engageButton.setBounds  (3 * W / 4 - swSize / 2, swY, swSize, swSize);
     reverseButton.setBounds (W / 2 - 38, swY + swSize / 2 - 11, 76, 22);
+    phraseButton.setBounds  (W / 2 - 28, swY + swSize / 2 + 14, 56, 16);
+    latchButton.setBounds   (W / 2 - 28, swY + swSize / 2 + 14, 56, 16);
+
+    // ── Rec length + auto-engage (below REC button) ────────────────────────────
+    {
+        const int recCx = W / 4;
+        recLengthSlider.setBounds  (recCx - 52, swY + swSize + 36, 104, 16);
+        autoEngageButton.setBounds (recCx - 24, swY + swSize + 57, 48, 16);
+        // ADSR toggle sits next to the FREEZE button (effect mode)
+        effectAdsrButton.setBounds (3 * W / 4 - 24, swY + swSize + 36, 48, 16);
+    }
 
     // ── MIDI utility row ───────────────────────────────────────────────────────
     modeButton.setBounds (W / 2 - 60, 498, 120, 22);
     rootNoteSlider.setBounds (0, 0, 1, 1);  // hidden, just needs to exist for attachment
+
+    // ── ADSR row (visible in MIDI mode, sits below modeButton) ─────────────────
+    // 4 knobs × 44px + 3 gaps × 16px = 224px, centred
+    {
+        const int kw = 44, gap = 16;
+        const int rowX = (W - 4 * kw - 3 * gap) / 2;
+        const int rowY = 526;
+        adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), rowY, kw, kw);
+        adsrDecaySlider  .setBounds (rowX + 1 * (kw + gap), rowY, kw, kw);
+        adsrSustainSlider.setBounds (rowX + 2 * (kw + gap), rowY, kw, kw);
+        adsrReleaseSlider.setBounds (rowX + 3 * (kw + gap), rowY, kw, kw);
+    }
 
     // ── Inspector (tiny, top-right corner) ────────────────────────────────────
     inspectButton.setBounds (W - 18, 2, 16, 16);
