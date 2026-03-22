@@ -128,8 +128,8 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
         return false;
 
     const auto in = layouts.getMainInputChannelSet();
-    // Accept stereo/mono input (effect mode) OR no input (instrument mode)
-    if (in != juce::AudioChannelSet::disabled() && in != out)
+    // Must have matching input — donor recording always needs audio input
+    if (in != out)
         return false;
 
     return true;
