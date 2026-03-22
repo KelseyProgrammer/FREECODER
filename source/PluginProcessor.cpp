@@ -19,7 +19,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PluginProcessor::createParam
     layout.add (std::make_unique<juce::AudioParameterInt>   ("rootNote",   "Root Note", 0, 127, 60));
     // Record length: 1, 2, 3, or 5 seconds (stepped)
     layout.add (std::make_unique<juce::AudioParameterFloat> ("recLength",   "Rec Length", 1.0f, 5.0f, 5.0f));
-    layout.add (std::make_unique<juce::AudioParameterBool>  ("autoEngage",  "Auto Engage", true));
+    layout.add (std::make_unique<juce::AudioParameterBool>  ("autoEngage",  "Auto Engage", false));
     layout.add (std::make_unique<juce::AudioParameterBool>  ("latch",        "Latch",       false));
     layout.add (std::make_unique<juce::AudioParameterBool>  ("phraseEngage", "Phrase Loop",  false));
     layout.add (std::make_unique<juce::AudioParameterBool>  ("effectAdsr",   "Effect ADSR",  false));
@@ -197,22 +197,6 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
-    // Auto-engage: fires once when recording stops, if the autoEngage param is on and in effect mode
-    if (spectralEngine.consumeAutoEngagePending())
-    {
-        const bool autoEngage = apvts.getRawParameterValue ("autoEngage")->load() > 0.5f;
-        const bool isMidi     = apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
-        if (autoEngage && !isMidi)
-        {
-            spectralEngine.setEngage (true);
-            juce::MessageManager::callAsync ([this]
-            {
-                if (auto* p = apvts.getParameter ("engage"))
-                    p->setValueNotifyingHost (1.0f);
-            });
-        }
-    }
-
     const bool midiMode = apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
     spectralEngine.setMidiMode (midiMode);
 
@@ -241,7 +225,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     }
     else
     {
-        // Effect mode: FREEZE and PHRASE are independent; PITCH applies to phrase loop
+        // Effect mode: apply param state first — auto-engage below will override if needed.
         const bool effectAdsr = apvts.getRawParameterValue ("effectAdsr")->load() > 0.5f;
         spectralEngine.setEffectAdsr   (effectAdsr);
         if (effectAdsr)
@@ -253,6 +237,21 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         spectralEngine.setEngage       (apvts.getRawParameterValue ("engage")->load()       > 0.5f);
         spectralEngine.setPhraseEngage (apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f);
         spectralEngine.setPitch        (apvts.getRawParameterValue ("pitch")->load());
+    }
+
+    // Auto-engage: fires once when recording stops — runs AFTER param state so it can override.
+    if (spectralEngine.consumeAutoEngagePending())
+    {
+        const bool autoEngage = apvts.getRawParameterValue ("autoEngage")->load() > 0.5f;
+        if (autoEngage && !midiMode)
+        {
+            spectralEngine.setEngage (true);
+            juce::MessageManager::callAsync ([this]
+            {
+                if (auto* p = apvts.getParameter ("engage"))
+                    p->setValueNotifyingHost (1.0f);
+            });
+        }
     }
 
     spectralEngine.process (buffer);

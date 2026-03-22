@@ -98,6 +98,16 @@ void SpectralEngine::stopRecording()
     donorRecording = false;
     hasDonor       = donorLength >= kFFTSize;
     donorReadPos   = 0;
+    phraseReadPosF = 0.0f;   // always rewind phrase to start of new recording
+
+    // Force-disengage so the upcoming setEngage(true) call from auto-engage
+    // actually runs (not skipped by the donorFrozen == v early-return guard).
+    // Gains are zeroed instantly — recording was already gating all output anyway.
+    donorFrozen   = false;
+    phraseEngaged = false;
+    engageGain.setCurrentAndTargetValue       (0.0f);
+    phraseEngageGain.setCurrentAndTargetValue (0.0f);
+
     if (hasDonor)
     {
         analyseDonorFrame();
@@ -707,6 +717,13 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             const int   pos1       = (pos0 + 1) % donorLength;
             const float frac       = phraseReadPosF - std::floor (phraseReadPosF);
 
+            // Morph blends freeze <-> phrase only when BOTH are active.
+            // If only one is engaged, its weight is 1.0 regardless of morph position.
+            const bool hasFreezeAudio = freezeGain > 0.001f;
+            const bool hasPhraseAudio = phraseGain > 0.001f;
+            const float freezeWeight  = (hasFreezeAudio && hasPhraseAudio) ? morph         : (hasFreezeAudio ? 1.0f : 0.0f);
+            const float phraseWeight  = (hasFreezeAudio && hasPhraseAudio) ? (1.0f - morph) : (hasPhraseAudio ? 1.0f : 0.0f);
+
             for (int c = 0; c < numCh; ++c)
             {
                 const float dry        = buffer.getSample (c, i);
@@ -715,9 +732,8 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                                               : 0.0f;
                 const float phraseOut  = donorBuffer.getSample (c, pos0) * (1.0f - frac)
                                        + donorBuffer.getSample (c, pos1) * frac;
-                // Freeze and phrase each have their own gain; morph blends between them
-                const float wet = spectralWet * freezeGain * morph
-                                + phraseOut   * phraseGain * (1.0f - morph);
+                const float wet = spectralWet * freezeGain * freezeWeight
+                                + phraseOut   * phraseGain * phraseWeight;
                 buffer.setSample (c, i, dry * (1.0f - dw * masterEnv) + wet * dw);
             }
 
