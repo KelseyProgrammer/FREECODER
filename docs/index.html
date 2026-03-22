@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FREECODER — Spectral Morphing Workstation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      padding: 60px 20px 40px;
+      text-align: center;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .logo {
+      font-size: 4rem;
+      font-weight: bold;
+      letter-spacing: 0.3em;
+      color: #39ff6a;
+      text-shadow: 0 0 20px #39ff6a88, 0 0 60px #39ff6a44;
+    }
+
+    .tagline {
+      margin-top: 12px;
+      font-size: 0.95rem;
+      letter-spacing: 0.2em;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    .by {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #444;
+      letter-spacing: 0.15em;
+    }
+
+    main {
+      max-width: 720px;
+      width: 100%;
+      padding: 60px 20px;
+    }
+
+    .blurb {
+      font-size: 1.05rem;
+      line-height: 1.8;
+      color: #bbb;
+      margin-bottom: 48px;
+    }
+
+    .blurb strong {
+      color: #39ff6a;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      color: #39ff6a;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      border-left: 2px solid #39ff6a;
+      padding-left: 10px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 56px;
+    }
+
+    .feature {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
+      padding: 18px 20px;
+    }
+
+    .feature-name {
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: #39ff6a;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 0.82rem;
+      color: #777;
+      line-height: 1.6;
+    }
+
+    .download-section {
+      margin-bottom: 56px;
+    }
+
+    .download-grid {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: all 0.15s;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #39ff6a;
+      color: #000;
+      font-weight: bold;
+    }
+
+    .btn-primary:hover {
+      background: #fff;
+      box-shadow: 0 0 24px #39ff6a88;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: #39ff6a;
+      border: 1px solid #39ff6a44;
+    }
+
+    .btn-secondary:hover {
+      border-color: #39ff6a;
+      background: #39ff6a11;
+    }
+
+    .install-note {
+      margin-top: 16px;
+      font-size: 0.78rem;
+      color: #555;
+      line-height: 1.7;
+    }
+
+    .install-note strong {
+      color: #888;
+    }
+
+    .warning {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: #1a1200;
+      border: 1px solid #3a2a00;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      color: #aa8800;
+      line-height: 1.6;
+    }
+
+    .specs {
+      margin-bottom: 56px;
+    }
+
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .spec-table tr {
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .spec-table td {
+      padding: 10px 0;
+      color: #777;
+    }
+
+    .spec-table td:first-child {
+      color: #555;
+      width: 160px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+    }
+
+    footer {
+      width: 100%;
+      padding: 32px 20px;
+      text-align: center;
+      border-top: 1px solid #1a1a1a;
+      font-size: 0.72rem;
+      color: #333;
+      letter-spacing: 0.1em;
+    }
+
+    footer a {
+      color: #444;
+      text-decoration: none;
+    }
+
+    footer a:hover { color: #39ff6a; }
+
+    @media (max-width: 500px) {
+      .logo { font-size: 2.5rem; }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">FREECODER</div>
+  <div class="tagline">Spectral Morphing Workstation</div>
+  <div class="by">by Ament Audio &nbsp;·&nbsp; v0.2.0 &nbsp;·&nbsp; free</div>
+</header>
+
+<main>
+
+  <p class="blurb">
+    Record any sound — a chord, a breath, a glitch, a riff. That recording becomes a
+    <strong>spectral donor</strong>: a living audio fingerprint. Your live input is then
+    continuously cross-pollinated with it through spectral morphing, formant transfer,
+    granular texture, and phase vocoder processing.<br><br>
+    The result is something between a <strong>vocoder</strong>, a <strong>granular reverb</strong>,
+    and an <strong>audio prism</strong> — uniquely shaped by whatever you chose to record.
+    Play it as an effect or a <strong>polyphonic MIDI instrument</strong>.
+  </p>
+
+  <!-- Features -->
+  <div class="section-title">What it does</div>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-name">Spectral Freeze</div>
+      <div class="feature-desc">FFT-based cross-synthesis blends your live signal with the donor's spectral fingerprint in real time.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">Granular Texture</div>
+      <div class="feature-desc">Scatter-randomised grain engine scrubs the donor buffer, adding cloud-like texture independent of freeze.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">Formant Transfer</div>
+      <div class="feature-desc">Spectral envelope extraction maps the donor's vowel character onto your input signal.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">Phrase Loop</div>
+      <div class="feature-desc">Loop and pitch-shift the recorded phrase with fractional-interpolated resampling. Reverse at will.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">MIDI Instrument Mode</div>
+      <div class="feature-desc">Play the frozen donor chromatically — 8-voice polyphony, ADSR envelope, root note mapping.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">Preset System</div>
+      <div class="feature-desc">10 factory presets. Save/load your own with donor buffer included. 3 hot-swap donor slots.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">WAV Import / Export</div>
+      <div class="feature-desc">Bring in any audio file as a donor, or export your captured donor for use in other tools.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-name">Live Spectrum + Tuner</div>
+      <div class="feature-desc">Dual-layer FFT visualizer shows the morph happening in real time. Built-in pitch tuner with cents display.</div>
+    </div>
+  </div>
+
+  <!-- Download -->
+  <div class="download-section">
+    <div class="section-title">Download</div>
+    <div class="download-grid">
+      <a class="btn btn-primary" href="https://github.com/KelseyProgrammer/FREECODER/releases/latest">
+        macOS (VST3 · AU · CLAP)
+      </a>
+      <a class="btn btn-secondary" href="https://github.com/KelseyProgrammer/FREECODER/releases/latest">
+        All releases &rarr;
+      </a>
+    </div>
+
+    <p class="install-note">
+      <strong>VST3</strong> → copy <code>FREECODER.vst3</code> to <code>~/Library/Audio/Plug-Ins/VST3/</code><br>
+      <strong>AU</strong> → copy <code>FREECODER.component</code> to <code>~/Library/Audio/Plug-Ins/Components/</code><br>
+      <strong>CLAP</strong> → copy <code>FREECODER.clap</code> to <code>~/Library/Audio/Plug-Ins/CLAP/</code><br>
+      Then restart your DAW.
+    </p>
+
+    <div class="warning">
+      ⚠ &nbsp;This build is unsigned. On macOS, right-click the plugin bundle → Open → Allow, or run:<br>
+      <code>xattr -cr ~/Library/Audio/Plug-Ins/VST3/FREECODER.vst3</code>
+    </div>
+  </div>
+
+  <!-- Specs -->
+  <div class="specs">
+    <div class="section-title">Specs</div>
+    <table class="spec-table">
+      <tr><td>Formats</td><td>VST3 · AU · CLAP (macOS) · VST3 (Windows/Linux)</td></tr>
+      <tr><td>Plugin type</td><td>Effect + MIDI Instrument</td></tr>
+      <tr><td>I/O</td><td>Stereo in → Stereo out</td></tr>
+      <tr><td>MIDI input</td><td>Yes (instrument mode, root-note mapped)</td></tr>
+      <tr><td>Latency</td><td>~46 ms (2048-sample FFT @ 44.1 kHz), reported to host</td></tr>
+      <tr><td>FFT engine</td><td>2048-pt, 4x overlap-add, Hann window</td></tr>
+      <tr><td>Donor length</td><td>Up to 5 seconds</td></tr>
+      <tr><td>Polyphony</td><td>8 voices (MIDI mode)</td></tr>
+      <tr><td>Requires</td><td>macOS 10.13+ · 64-bit DAW</td></tr>
+      <tr><td>Price</td><td>Free</td></tr>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  <a href="https://github.com/KelseyProgrammer/FREECODER">GitHub</a>
+  &nbsp;·&nbsp;
+  Ament Audio &nbsp;·&nbsp; built with JUCE
+</footer>
+
+</body>
+</html>
