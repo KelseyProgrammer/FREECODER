@@ -882,7 +882,7 @@ void PluginEditor::paint (juce::Graphics& g)
     // ── Bottom branding + diagnostics ──────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 2", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
     // Diagnostic readout: actual engine state (not params — params lag real state)
     const bool isRec    = processorRef.isDonorRecording();
