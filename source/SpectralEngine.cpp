@@ -53,8 +53,9 @@ void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
     donorBuffer.clear();
     donorWritePos  = 0;
     donorLength    = 0;
+    donorLengthAtomic.store (0, std::memory_order_relaxed);
     donorReadPos   = 0;
-    donorRecording = false;
+    donorRecording.store (false, std::memory_order_relaxed);
     hasDonor       = false;
     hopCount       = 0;
     grainSpawnCounter = 0;
@@ -83,19 +84,20 @@ void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
 //==============================================================================
 void SpectralEngine::startRecording()
 {
-    if (donorRecording) return;
+    if (donorRecording.load (std::memory_order_relaxed)) return;
     donorBuffer.clear();
     donorWritePos  = 0;
     donorLength    = 0;
+    donorLengthAtomic.store (0, std::memory_order_relaxed);
     donorReadPos   = 0;
     hasDonor       = false;
-    donorRecording = true;
+    donorRecording.store (true, std::memory_order_relaxed);
 }
 
 void SpectralEngine::stopRecording()
 {
-    if (!donorRecording) return;
-    donorRecording = false;
+    if (!donorRecording.load (std::memory_order_relaxed)) return;
+    donorRecording.store (false, std::memory_order_relaxed);
     hasDonor       = donorLength >= kFFTSize;
     donorReadPos   = 0;
     phraseReadPosF = 0.0f;   // always rewind phrase to start of new recording
@@ -243,9 +245,10 @@ void SpectralEngine::setDonorData (const juce::AudioBuffer<float>& buf, int leng
         donorBuffer.copyFrom (c, 0, buf, c, 0, safeLen);
 
     donorLength    = safeLen;
+    donorLengthAtomic.store (safeLen, std::memory_order_relaxed);
     donorWritePos  = safeLen;
     donorReadPos   = 0;
-    donorRecording = false;
+    donorRecording.store (false, std::memory_order_relaxed);
     hasDonor       = safeLen >= kFFTSize;
 
     if (hasDonor)
@@ -282,6 +285,7 @@ void SpectralEngine::setActiveSlot (int n) noexcept
         // Empty slot: clear working state
         donorBuffer.clear();
         donorLength    = 0;
+        donorLengthAtomic.store (0, std::memory_order_relaxed);
         donorWritePos  = 0;
         donorReadPos   = 0;
         hasDonor       = false;
@@ -585,6 +589,7 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                 donorBuffer.setSample (c, donorWritePos + i, buffer.getSample (c, i));
         donorWritePos += toWrite;
         donorLength    = donorWritePos;
+        donorLengthAtomic.store (donorLength, std::memory_order_relaxed);
         if (donorWritePos >= limit)
             stopRecording();
     }

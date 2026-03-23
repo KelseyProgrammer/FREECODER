@@ -321,6 +321,12 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (auto xml = juce::XmlDocument::parse (xmlStr))
             if (xml->hasTagName (apvts.state.getType()))
                 apvts.replaceState (juce::ValueTree::fromXml (*xml));
+
+        // Never restore recTrigger as true — it would fire startRecording on the first
+        // processBlock and wipe the donor buffer we're about to restore below.
+        if (auto* p = apvts.getParameter ("recTrigger"))
+            p->setValueNotifyingHost (0.0f);
+        prevRecTrigger = false;
     }
 
     // Donor slots (optional — old single-slot presets fall through gracefully)

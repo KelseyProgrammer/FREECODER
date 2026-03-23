@@ -43,7 +43,8 @@ public:
     static constexpr int getLatencySamples() noexcept { return kFFTSize; }
 
     const juce::AudioBuffer<float>& getDonorBuffer() const noexcept { return donorBuffer; }
-    int  getDonorLength() const noexcept { return donorLength; }
+    int  getDonorLength() const noexcept { return donorLengthAtomic.load (std::memory_order_relaxed); }
+    bool isRecording()    const noexcept { return donorRecording.load (std::memory_order_relaxed); }
     void setDonorData    (const juce::AudioBuffer<float>& buf, int length);
     void importDonorData (const juce::AudioBuffer<float>& buf, int length); // loads + saves to active slot
 
@@ -179,11 +180,12 @@ private:
     // Donor buffer (working state — always the active slot's audio)
     juce::AudioBuffer<float> donorBuffer;
     int  donorWritePos      = 0;
-    int  donorLength        = 0;
+    int  donorLength        = 0;          // audio thread only
+    std::atomic<int>  donorLengthAtomic { 0 }; // cross-thread safe read
     int  recordLimitSamples = kMaxDonorSamples;
     std::atomic<bool> autoEngagePending { false };
     int  donorReadPos   = 0;
-    bool donorRecording = false;
+    std::atomic<bool> donorRecording { false };
     bool hasDonor       = false;
 
     // Slot storage — pre-allocated so slot switch/save never touches the heap

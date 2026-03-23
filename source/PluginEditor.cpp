@@ -866,10 +866,10 @@ void PluginEditor::paint (juce::Graphics& g)
     g.setFont (juce::FontOptions (8.0f));
     g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
-    // Diagnostic readout: input channels | block size | state flags
+    // Diagnostic readout: actual engine state (not params — params lag real state)
+    const bool isRec    = processorRef.isDonorRecording();
     const bool hasDonor = processorRef.getDonorLength() > 0;
     const bool engOn    = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
-    const bool isRec    = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
     juce::String stateStr = juce::String (isRec ? "REC " : (hasDonor ? "READY " : "")) + (engOn ? "ENG" : "");
     g.setColour (stateStr.isNotEmpty() ? juce::Colour (0xff44ff44) : juce::Colour (0xff222222));
     g.drawText (stateStr, 4, H - 16, 80, 14, juce::Justification::centredLeft);

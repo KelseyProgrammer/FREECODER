@@ -46,6 +46,7 @@ public:
     float getDonorFillLevel() const { return spectralEngine.getDonorFillLevel(); }
     const juce::AudioBuffer<float>& getDonorBuffer() const { return spectralEngine.getDonorBuffer(); }
     int   getDonorLength()   const { return spectralEngine.getDonorLength(); }
+    bool  isDonorRecording() const { return spectralEngine.isRecording(); }
 
     PresetManager& getPresetManager() { return presetManager; }
 
