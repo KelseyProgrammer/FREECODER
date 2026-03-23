@@ -383,6 +383,8 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     adsrReleaseSlider.setRange (0.001, 10.0, 0.001);
 
     startTimerHz (15);
+    setResizable (true, true);
+    setResizeLimits (420, 480, 900, 1000);
     setSize (540, 600);
 }
 
@@ -497,6 +499,9 @@ static void drawScrew (juce::Graphics& g, float cx, float cy, float r)
 void PluginEditor::paint (juce::Graphics& g)
 {
     const int W = getWidth(), H = getHeight();
+    const int headerH  = juce::roundToInt (H * 0.1133f);
+    const int presetH  = juce::roundToInt (H * 0.060f);
+    const int contentY = headerH + presetH;
 
     // ── Background (vertical gradient) ──────────────────────────────────────
     {
@@ -505,7 +510,7 @@ void PluginEditor::paint (juce::Graphics& g)
         g.setGradientFill (bg);
         g.fillAll();
     }
-    drawFaceplateTexture (g, { 0, 104, W, H - 104 });
+    drawFaceplateTexture (g, { 0, contentY, W, H - contentY });
 
     // Corner screws (4 corners — classic pedal enclosure look)
     const float screwR  = 7.0f;
@@ -520,11 +525,11 @@ void PluginEditor::paint (juce::Graphics& g)
         juce::ColourGradient hdr (juce::Colour (0xff1e1e1e), 0.0f, 0.0f,
                                    juce::Colour (0xff111111), 0.0f, 68.0f, false);
         g.setGradientFill (hdr);
-        g.fillRect (0, 0, W, 68);
+        g.fillRect (0, 0, W, headerH);
     }
     // Thin green separator
     g.setColour (juce::Colour (0xff44ff44).withAlpha (0.45f));
-    g.drawLine (0.0f, 67.0f, (float) W, 67.0f, 1.0f);
+    g.drawLine (0.0f, (float)(headerH - 1), (float) W, (float)(headerH - 1), 1.0f);
     // Subtle inner highlight at top
     g.setColour (juce::Colours::white.withAlpha (0.04f));
     g.drawLine (0.0f, 1.0f, (float) W, 1.0f, 1.0f);
@@ -563,13 +568,13 @@ void PluginEditor::paint (juce::Graphics& g)
 
     // ── Preset strip ────────────────────────────────────────────────────────
     g.setColour (juce::Colour (0xff44ff44).withAlpha (0.15f));
-    g.fillRect (0, 68, W, 36);
+    g.fillRect (0, headerH, W, presetH);
     g.setColour (juce::Colour (0xff44ff44).withAlpha (0.20f));
-    g.drawLine (0, 104, (float) W, 104, 1.0f);
+    g.drawLine (0.0f, (float) contentY, (float) W, (float) contentY, 1.0f);
 
     g.setColour (juce::Colour (0xff44ff44));
     g.setFont (juce::FontOptions (12.0f).withStyle ("Bold"));
-    g.drawText (presetManager.getCurrentPresetName(), 52, 72, 362, 26, juce::Justification::centred);
+    g.drawText (presetManager.getCurrentPresetName(), 52, headerH + 5, W - 160, 26, juce::Justification::centred);
 
     // ── Slider section ──────────────────────────────────────────────────────
     auto drawSliderLabels = [&] (int lx, int ly, const juce::String& name)
@@ -579,20 +584,20 @@ void PluginEditor::paint (juce::Graphics& g)
         g.drawText (name, lx, ly, 100, 14, juce::Justification::centredLeft);
     };
 
-    drawSliderLabels (20,      108, "morph");
-    drawSliderLabels (W - 120, 108, "dry/wet");
+    drawSliderLabels (20,      morphSlider.getY() - 18,   "morph");
+    drawSliderLabels (W - 120, drywetSlider.getY() - 18,  "dry/wet");
 
     // Value readouts
     g.setColour (juce::Colour (0xff44ff44));
-    g.setFont (juce::FontOptions (8.5f));
-    g.drawText (juce::String (morphSlider.getValue(),  2), 20,      161, 80, 12, juce::Justification::centredLeft);
-    g.drawText (juce::String (drywetSlider.getValue(), 2), W - 120, 161, 80, 12, juce::Justification::centredRight);
+    g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
+    g.drawText (juce::String (morphSlider.getValue(),  2), 20,      morphSlider.getBottom() + 3, 80, 12, juce::Justification::centredLeft);
+    g.drawText (juce::String (drywetSlider.getValue(), 2), W - 120, drywetSlider.getBottom() + 3, 80, 12, juce::Justification::centredRight);
 
     // Morph endpoint labels: PHRASE (0) on left, SPECTRAL (1) on right
-    g.setColour (juce::Colour (0xff333333));
-    g.setFont (juce::FontOptions (7.0f));
-    g.drawText ("phrase",   20,      175, 80,  10, juce::Justification::centredLeft);
-    g.drawText ("spectral", 20,      175, 218, 10, juce::Justification::centredRight);
+    g.setColour (juce::Colour (0xff666666));
+    g.setFont (juce::FontOptions (7.5f));
+    g.drawText ("phrase",   20,                        morphSlider.getBottom() + 17, 80,  10, juce::Justification::centredLeft);
+    g.drawText ("spectral", 20,                        morphSlider.getBottom() + 17, 218, 10, juce::Justification::centredRight);
 
     // ── Pad labels ──────────────────────────────────────────────────────────
     const int lpad1Y = grainSlider.getY()   + grainSlider.getHeight()   / 2 - 10;
@@ -631,8 +636,8 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawRoundedRectangle (displayBounds.toFloat(), 8.0f, 1.5f);
 
     // "DONOR" label
-    g.setColour (juce::Colour (0xff1f5e1f));
-    g.setFont (juce::FontOptions (9.0f));
+    g.setColour (juce::Colour (0xff2a7a2a));
+    g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
     g.drawText ("DONOR",
                 displayBounds.getX(), displayBounds.getY() + 6,
                 displayBounds.getWidth(), 14, juce::Justification::centred);
@@ -655,6 +660,19 @@ void PluginEditor::paint (juce::Graphics& g)
             const float norm = juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 60.0f);
             return botY - norm * bh;
         };
+
+        // ── dB grid lines (subtle horizontal guides) ────────────────────────
+        g.setColour (juce::Colour (0xff1a2a1a));
+        for (float db : { -12.0f, -24.0f, -36.0f, -48.0f })
+        {
+            const float norm = juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 60.0f);
+            const float gy   = botY - norm * bh;
+            g.drawHorizontalLine (juce::roundToInt (gy), bx, bx + bw);
+            g.setColour (juce::Colour (0xff223322));
+            g.setFont (juce::FontOptions (7.0f));
+            g.drawText (juce::String ((int) db) + "dB", (int) bx + 2, (int) gy - 8, 32, 8, juce::Justification::centredLeft);
+            g.setColour (juce::Colour (0xff1a2a1a));
+        }
 
         if (spectrumSnapshot.hasData)
         {
@@ -798,6 +816,7 @@ void PluginEditor::paint (juce::Graphics& g)
         // modeButton label updates to reflect current mode
         const_cast<PluginEditor*>(this)->modeButton.setButtonText (isMidi ? "MIDI MODE" : "EFFECT MODE");
 
+        const int modeButtonY = modeButton.getY();
         if (isMidi)
         {
             // Root note display: right of the mode button
@@ -805,13 +824,12 @@ void PluginEditor::paint (juce::Graphics& g)
             g.setColour (juce::Colour (0xff44ffff));
             g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
             g.drawText ("ROOT: " + midiNoteToName (root),
-                        W / 2 + 66, 498, 120, 22, juce::Justification::centredLeft);
+                        W / 2 + 66, modeButtonY, 120, 22, juce::Justification::centredLeft);
 
             // Tuner: live pitch of input signal (left of the mode button)
             if (tunerResult.hasData)
             {
                 const float cents = tunerResult.centsOffset;
-                // Colour: green if close to a note, amber if slightly off, red if far
                 const juce::Colour tunerCol = std::abs (cents) < 10.0f ? juce::Colour (0xff44ff44)
                                             : std::abs (cents) < 25.0f ? juce::Colour (0xffffaa00)
                                                                         : juce::Colour (0xffff4444);
@@ -819,10 +837,10 @@ void PluginEditor::paint (juce::Graphics& g)
                 g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
                 const juce::String centsStr = (cents >= 0.0f ? "+" : "") + juce::String ((int) cents) + "c";
                 g.drawText (midiNoteToName (tunerResult.midiNote) + " " + centsStr,
-                            10, 498, W / 2 - 70, 22, juce::Justification::centredRight);
+                            10, modeButtonY, W / 2 - 70, 22, juce::Justification::centredRight);
                 g.setColour (juce::Colour (0xff333333));
                 g.setFont (juce::FontOptions (7.5f));
-                g.drawText ("INPUT", 10, 510, W / 2 - 70, 10, juce::Justification::centredRight);
+                g.drawText ("INPUT", 10, modeButtonY + 12, W / 2 - 70, 10, juce::Justification::centredRight);
             }
 
             // ADSR labels below each knob (MIDI mode)
@@ -830,7 +848,7 @@ void PluginEditor::paint (juce::Graphics& g)
             g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
             const int kw = 44, gap = 16;
             const int rowX = (W - 4 * kw - 3 * gap) / 2;
-            const int labelY = 526 + kw + 3;
+            const int labelY = adsrAttackSlider.getBottom() + 3;
             static const char* labels[] = { "ATK", "DEC", "SUS", "REL" };
             for (int i = 0; i < 4; ++i)
                 g.drawText (labels[i], rowX + i * (kw + gap), labelY, kw, 12,
@@ -846,7 +864,7 @@ void PluginEditor::paint (juce::Graphics& g)
                 g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
                 const int kw = 44, gap = 16;
                 const int rowX = (W - 4 * kw - 3 * gap) / 2;
-                const int labelY = 526 + kw + 3;
+                const int labelY = adsrAttackSlider.getBottom() + 3;
                 static const char* effLabels[] = { "ATK", "DEC", "SUS", "REL" };
                 for (int i = 0; i < 4; ++i)
                     g.drawText (effLabels[i], rowX + i * (kw + gap), labelY, kw, 12,
@@ -882,80 +900,92 @@ void PluginEditor::paint (juce::Graphics& g)
 void PluginEditor::resized()
 {
     const int W = getWidth();
+    const int H = getHeight();
 
-    // ── Preset strip (below header, above sliders) ─────────────────────────────
-    prevPresetButton.setBounds (20,      72, 28, 26);
-    nextPresetButton.setBounds (418,     72, 28, 26);
-    savePresetButton.setBounds (452,     72, 68, 26);
-    // preset name drawn in paint() between x=52 and x=414
+    const int headerH  = juce::roundToInt (H * 0.1133f);   // ~68 at 600
+    const int presetH  = juce::roundToInt (H * 0.060f);    // ~36 at 600
+    const int contentY = headerH + presetH;                 // ~104 at 600
 
-    // ── Top sliders ────────────────────────────────────────────────────────────
-    morphSlider.setBounds  (20,      126, 220, 32);
-    drywetSlider.setBounds (W - 240, 126, 220, 32);
+    // ── Preset strip ────────────────────────────────────────────────────────────
+    prevPresetButton.setBounds (20,       headerH + 5,  28,  26);
+    nextPresetButton.setBounds (W - 100,  headerH + 5,  28,  26);
+    savePresetButton.setBounds (W - 68,   headerH + 5,  58,  26);
 
-    // ── Pads ───────────────────────────────────────────────────────────────────
-    const int padW  = 110, padH = 82;
-    const int pad1Y = 184, pad2Y = 280;
-    const int leftX  = 40;
-    const int rightX = W - padW - 40;
+    // ── Top sliders ─────────────────────────────────────────────────────────────
+    const int sliderY  = contentY + juce::roundToInt (H * 0.0367f);  // ~22 gap
+    const int sliderH2 = juce::roundToInt (H * 0.0533f);             // ~32
+    const int sliderW  = juce::roundToInt (W * 0.407f);              // ~220
+    morphSlider.setBounds  (20,               sliderY, sliderW, sliderH2);
+    drywetSlider.setBounds (W - 20 - sliderW, sliderY, sliderW, sliderH2);
+
+    // ── Pads ────────────────────────────────────────────────────────────────────
+    const int padMarginX = juce::roundToInt (W * 0.074f);   // ~40
+    const int padW       = juce::roundToInt (W * 0.204f);   // ~110
+    const int padH       = juce::roundToInt (H * 0.137f);   // ~82
+    const int pad1Y      = contentY + juce::roundToInt (H * 0.133f); // ~184
+    const int pad2Y      = pad1Y + juce::roundToInt (H * 0.160f);    // ~280
+    const int leftX      = padMarginX;
+    const int rightX     = W - padW - padMarginX;
 
     grainSlider.setBounds   (leftX,  pad1Y, padW, padH);
     scatterSlider.setBounds (leftX,  pad2Y, padW, padH);
     formantSlider.setBounds (rightX, pad1Y, padW, padH);
     pitchSlider.setBounds   (rightX, pad2Y, padW, padH);
 
-    // ── Centre display ─────────────────────────────────────────────────────────
-    const int dispX = leftX + padW + 14;
-    const int dispW = rightX - dispX - 14;
-    displayBounds   = { dispX, pad1Y, dispW, pad2Y + padH - pad1Y };
+    // ── Centre display ──────────────────────────────────────────────────────────
+    const int dispGap = juce::roundToInt (W * 0.026f);   // ~14
+    const int dispX   = leftX + padW + dispGap;
+    const int dispW   = rightX - dispX - dispGap;
+    displayBounds     = { dispX, pad1Y, dispW, pad2Y + padH - pad1Y };
 
-    // ── Donor slot buttons (A/B/C) + export below the display ──────────────────
+    // ── Donor slot buttons below the display ────────────────────────────────────
     {
-        const int btnW  = 36, btnH = 16, gap = 8;
+        const int btnW   = juce::roundToInt (W * 0.067f);  // ~36
+        const int btnH   = 16;
+        const int gap    = juce::roundToInt (W * 0.015f);  // ~8
         const int totalW = 3 * btnW + 2 * gap;
         const int startX = displayBounds.getCentreX() - totalW / 2;
         const int btnY   = displayBounds.getBottom() + 4;
         for (int i = 0; i < SpectralEngine::kNumDonorSlots; ++i)
             slotButtons[i]->setBounds (startX + i * (btnW + gap), btnY, btnW, btnH);
-        // Import to the left of slot A, export to the right of slot C
         importButton.setBounds (startX - (btnW + gap), btnY, btnW, btnH);
         exportButton.setBounds (startX + 3 * (btnW + gap), btnY, btnW, btnH);
     }
 
-    // ── Footswitches ────────────────────────────────────────────────────────────
-    const int swSize = 88;
-    const int swY    = 386;
+    // ── Footswitches ─────────────────────────────────────────────────────────────
+    const int swSize = juce::roundToInt (juce::jmin (W * 0.163f, H * 0.147f));  // ~88
+    const int swY    = pad2Y + padH + juce::roundToInt (H * 0.040f);            // ~386
     recButton.setBounds     (W / 4 - swSize / 2,     swY, swSize, swSize);
     engageButton.setBounds  (3 * W / 4 - swSize / 2, swY, swSize, swSize);
     reverseButton.setBounds (W / 2 - 38, swY + swSize / 2 - 11, 76, 22);
     phraseButton.setBounds  (W / 2 - 28, swY + swSize / 2 + 14, 56, 16);
     latchButton.setBounds   (W / 2 - 28, swY + swSize / 2 + 14, 56, 16);
 
-    // ── Rec length + auto-engage (below REC button) ────────────────────────────
+    // ── Rec controls (below REC footswitch) ──────────────────────────────────────
     {
-        const int recCx = W / 4;
-        recLengthSlider.setBounds  (recCx - 52, swY + swSize + 36, 104, 16);
-        autoEngageButton.setBounds (recCx - 24, swY + swSize + 57, 48, 16);
-        // ADSR toggle sits next to the FREEZE button (effect mode)
-        effectAdsrButton.setBounds (3 * W / 4 - 24, swY + swSize + 36, 48, 16);
+        const int recCx   = W / 4;
+        const int belowSw = swY + swSize;
+        recLengthSlider.setBounds  (recCx - 52, belowSw + juce::roundToInt (H * 0.060f), 104, 16); // +36
+        autoEngageButton.setBounds (recCx - 24, belowSw + juce::roundToInt (H * 0.095f),  48, 16); // +57
+        effectAdsrButton.setBounds (3 * W / 4 - 24, belowSw + juce::roundToInt (H * 0.060f), 48, 16);
     }
 
-    // ── MIDI utility row ───────────────────────────────────────────────────────
-    modeButton.setBounds (W / 2 - 60, 498, 120, 22);
-    rootNoteSlider.setBounds (0, 0, 1, 1);  // hidden, just needs to exist for attachment
+    // ── MIDI utility row ─────────────────────────────────────────────────────────
+    const int modeY = swY + swSize + juce::roundToInt (H * 0.040f);  // ~498
+    modeButton.setBounds (W / 2 - 60, modeY, 120, 22);
+    rootNoteSlider.setBounds (0, 0, 1, 1);   // hidden, just needs to exist for attachment
 
-    // ── ADSR row (visible in MIDI mode, sits below modeButton) ─────────────────
-    // 4 knobs × 44px + 3 gaps × 16px = 224px, centred
+    // ── ADSR row ─────────────────────────────────────────────────────────────────
     {
         const int kw = 44, gap = 16;
         const int rowX = (W - 4 * kw - 3 * gap) / 2;
-        const int rowY = 526;
+        const int rowY = modeY + 28;
         adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), rowY, kw, kw);
         adsrDecaySlider  .setBounds (rowX + 1 * (kw + gap), rowY, kw, kw);
         adsrSustainSlider.setBounds (rowX + 2 * (kw + gap), rowY, kw, kw);
         adsrReleaseSlider.setBounds (rowX + 3 * (kw + gap), rowY, kw, kw);
     }
 
-    // ── Inspector (tiny, top-right corner) ────────────────────────────────────
+    // ── Inspector (tiny, top-right corner) ───────────────────────────────────────
     inspectButton.setBounds (W - 18, 2, 16, 16);
 }

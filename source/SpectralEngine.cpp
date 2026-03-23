@@ -227,7 +227,22 @@ void SpectralEngine::setPhraseEngage (bool v) noexcept
     if (phraseEngaged == v) return;
     phraseEngaged = v;
     phraseEngageGain.setTargetValue (v ? 1.0f : 0.0f);
-    if (v) phraseReadPosF = (float) donorReadPos;  // start loop from current analysis position
+    if (v)
+    {
+        phraseReadPosF = (float) donorReadPos;  // start loop from current analysis position
+    }
+    else
+    {
+        // Clear phrase formant OLA state so stale audio doesn't bleed into the next engage
+        for (auto& cs : ch)
+        {
+            std::fill (cs.phraseFormantRing.begin(),  cs.phraseFormantRing.end(),  0.0f);
+            std::fill (cs.phraseFormantAccum.begin(), cs.phraseFormantAccum.end(), 0.0f);
+            std::fill (cs.phraseFormantQueue.begin(), cs.phraseFormantQueue.end(), 0.0f);
+            cs.phraseFormantWritePos = 0;
+            cs.phraseFormantQueuePos = kHopSize;
+        }
+    }
 }
 
 float SpectralEngine::getDonorFillLevel() const
@@ -520,6 +535,68 @@ void SpectralEngine::processFFTFrame (int chIdx)
 }
 
 //==============================================================================
+// Applies donor formant envelope to the phrase playback stream.
+// Called once per channel at each hop boundary when phraseEngaged && formant > 0.
+// Uses the same shared scratch buffers as processFFTFrame — safe because this
+// runs after all processFFTFrame calls have completed for the hop.
+void SpectralEngine::processPhraseFftFrame (int chIdx)
+{
+    auto& cs = ch[chIdx];
+
+    // Build analysis frame from phrase ring buffer (oldest sample first)
+    for (int i = 0; i < kFFTSize; ++i)
+        fftScratch[i] = cs.phraseFormantRing[(cs.phraseFormantWritePos + i) & (kFFTSize - 1)];
+
+    std::fill (fftScratch.begin() + kFFTSize, fftScratch.end(), 0.0f);
+    window.multiplyWithWindowingTable (fftScratch.data(), (size_t) kFFTSize);
+    fft.performRealOnlyForwardTransform (fftScratch.data(), false);
+
+    // Extract phrase magnitudes and phases into shared scratch (inputMag / inputPhase)
+    for (int k = 0; k < kNumBins; ++k)
+    {
+        const float re = fftScratch[2 * k];
+        const float im = fftScratch[2 * k + 1];
+        inputMag[k]   = std::sqrt (re * re + im * im);
+        inputPhase[k] = std::atan2 (im, re);
+    }
+
+    // Compute phrase spectral envelope (reuses liveEnvelope scratch)
+    computeEnvelope (inputMag.data(), liveEnvelope.data(), kNumBins, 50);
+
+    // Shape phrase spectrum toward donor's formant envelope
+    for (int k = 0; k < kNumBins; ++k)
+    {
+        const float phraseEnv = std::max (liveEnvelope[k], 1e-6f);
+        const float ratio     = juce::jlimit (0.1f, 10.0f, donorEnvelope[k] / phraseEnv);
+        const float shaped    = inputMag[k] * juce::jmax (0.0f, 1.0f + formant * (ratio - 1.0f));
+
+        fftScratch[2 * k]     = shaped * std::cos (inputPhase[k]);
+        fftScratch[2 * k + 1] = shaped * std::sin (inputPhase[k]);
+    }
+
+    // Mirror conjugate symmetry for real IFFT
+    for (int k = 1; k < kFFTSize / 2; ++k)
+    {
+        fftScratch[2 * (kFFTSize - k)]     =  fftScratch[2 * k];
+        fftScratch[2 * (kFFTSize - k) + 1] = -fftScratch[2 * k + 1];
+    }
+
+    // IFFT + normalize, OLA accumulate
+    fft.performRealOnlyInverseTransform (fftScratch.data());
+    const float scale = 1.0f / (2.0f * (float) kFFTSize);
+
+    for (int i = 0; i < kFFTSize; ++i)
+        cs.phraseFormantAccum[i] += fftScratch[i] * scale;
+
+    // Deliver kHopSize ready samples, shift accumulator
+    std::copy (cs.phraseFormantAccum.begin(), cs.phraseFormantAccum.begin() + kHopSize, cs.phraseFormantQueue.begin());
+    std::copy (cs.phraseFormantAccum.begin() + kHopSize, cs.phraseFormantAccum.end(), cs.phraseFormantAccum.begin());
+    std::fill (cs.phraseFormantAccum.end() - kHopSize, cs.phraseFormantAccum.end(), 0.0f);
+
+    cs.phraseFormantQueuePos = 0;
+}
+
+//==============================================================================
 void SpectralEngine::spawnGrain()
 {
     for (auto& gr : grains)
@@ -669,6 +746,25 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                 donorReadPos = (donorReadPos + kHopSize) % donorLength;
                 analyseDonorFrame();
             }
+
+            // Scatter: jitter the phrase playhead at each hop boundary.
+            // Mirrors grain scatter range (±25% of donor length at max scatter).
+            if (phraseEngaged && hasDonor && donorLength > 0 && scatter > 0.0f)
+            {
+                const int scatterRange = (int) (scatter * (float) donorLength * 0.25f);
+                if (scatterRange > 0)
+                {
+                    phraseReadPosF += (rng.nextFloat() * 2.0f - 1.0f) * (float) scatterRange;
+                    if (phraseReadPosF < 0.0f)                  phraseReadPosF += (float) donorLength;
+                    if (phraseReadPosF >= (float) donorLength)   phraseReadPosF -= (float) donorLength;
+                }
+            }
+
+            // Phrase formant: run phrase ring buffer through donor spectral envelope shaping.
+            // Called after scatter so the ring reflects the audio that was just output.
+            if (phraseEngaged && hasDonor && formant > 0.0f)
+                for (int c = 0; c < numCh; ++c)
+                    processPhraseFftFrame (c);
         }
 
         const float dw = dryWetSmoothed.getNextValue();
@@ -744,12 +840,27 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
 
             for (int c = 0; c < numCh; ++c)
             {
-                const float dry        = buffer.getSample (c, i);
+                const float dry         = buffer.getSample (c, i);
                 const float spectralWet = (ch[c].outputQueuePos < kHopSize)
                                               ? ch[c].outputQueue[ch[c].outputQueuePos++]
                                               : 0.0f;
-                const float phraseOut  = donorBuffer.getSample (c, pos0) * (1.0f - frac)
-                                       + donorBuffer.getSample (c, pos1) * frac;
+
+                const float rawPhrase = donorBuffer.getSample (c, pos0) * (1.0f - frac)
+                                      + donorBuffer.getSample (c, pos1) * frac;
+
+                // Feed raw phrase into formant ring buffer for processing at the next hop
+                if (formant > 0.0f && phraseEngaged)
+                {
+                    ch[c].phraseFormantRing[ch[c].phraseFormantWritePos] = rawPhrase;
+                    ch[c].phraseFormantWritePos = (ch[c].phraseFormantWritePos + 1) & (kFFTSize - 1);
+                }
+
+                // Blend raw phrase with formant-shaped output (falls back to raw during warmup)
+                float shapedPhrase = rawPhrase;
+                if (formant > 0.0f && ch[c].phraseFormantQueuePos < kHopSize)
+                    shapedPhrase = ch[c].phraseFormantQueue[ch[c].phraseFormantQueuePos++];
+                const float phraseOut = rawPhrase * (1.0f - formant) + shapedPhrase * formant;
+
                 const float wet = spectralWet * freezeGain * freezeWeight
                                 + phraseOut   * phraseGain * phraseWeight;
                 buffer.setSample (c, i, dry * (1.0f - dw * masterEnv) + wet * dw);
@@ -782,6 +893,11 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             std::fill (cs.outputAccum.begin(), cs.outputAccum.end(), 0.0f);
             std::fill (cs.outputQueue.begin(), cs.outputQueue.end(), 0.0f);
             cs.outputQueuePos = kHopSize;
+
+            // Also reset phrase formant OLA state
+            std::fill (cs.phraseFormantAccum.begin(), cs.phraseFormantAccum.end(), 0.0f);
+            std::fill (cs.phraseFormantQueue.begin(), cs.phraseFormantQueue.end(), 0.0f);
+            cs.phraseFormantQueuePos = kHopSize;
         }
         for (auto& gr : grains)
             gr.active = false;

@@ -93,7 +93,8 @@ private:
     static constexpr int kGrainSamples    = 2048;
 
     // FFT frame processing
-    void processFFTFrame (int ch);
+    void processFFTFrame      (int ch);
+    void processPhraseFftFrame (int ch);  // applies donor formant envelope to phrase playback
     void analyseDonorFrame();
     void computeEnvelope (const float* mag, float* env, int numBins, int halfWindow) const;
 
@@ -143,12 +144,25 @@ private:
         std::vector<float> outputQueue;
         int                outputQueuePos = 0;
 
+        // Phrase formant OLA path — processes phrase playback samples through donor spectral envelope
+        std::vector<float> phraseFormantRing;
+        int                phraseFormantWritePos  = 0;
+        std::vector<float> phraseFormantAccum;
+        std::vector<float> phraseFormantQueue;
+        int                phraseFormantQueuePos  = 0;
+
         void init()
         {
             inputRing.assign   (kFFTSize, 0.0f);
             outputAccum.assign (kFFTSize, 0.0f);
             outputQueue.assign (kHopSize, 0.0f);
             inputWritePos = outputQueuePos = 0;
+
+            phraseFormantRing.assign  (kFFTSize, 0.0f);
+            phraseFormantAccum.assign (kFFTSize, 0.0f);
+            phraseFormantQueue.assign (kHopSize, 0.0f);
+            phraseFormantWritePos = 0;
+            phraseFormantQueuePos = kHopSize;  // start exhausted — raw phrase used as fallback during warmup
         }
     };
 

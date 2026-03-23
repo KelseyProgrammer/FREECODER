@@ -58,8 +58,8 @@ pamplejuce/
 |---|---|---|---|---|
 | `morph` | float | 0–1 | 0.5 | Phrase loop (0) ↔ spectral freeze (1) |
 | `grain` | float | 0–1 | 0.0 | Granular texture amount |
-| `formant` | float | 0–1 | 0.5 | Formant envelope transfer intensity |
-| `scatter` | float | 0–1 | 0.3 | Grain position randomisation |
+| `formant` | float | 0–1 | 0.5 | Formant envelope transfer intensity; in PHRASE mode, shapes phrase playback through donor spectral envelope via a second OLA path |
+| `scatter` | float | 0–1 | 0.3 | Grain position randomisation + phrase playhead jitter (in PHRASE mode) |
 | `drywet` | float | 0–1 | 0.8 | Final dry/wet blend |
 | `pitch` | float | -12–+12 | 0.0 | Phrase pitch shift (semitones) |
 | `recTrigger` | bool | — | false | Edge-triggered: starts/stops donor capture |
@@ -67,7 +67,7 @@ pamplejuce/
 | `phraseEngage` | bool | — | false | Phrase loop engage (independent of freeze) |
 | `reverse` | bool | — | false | Play phrase loop backwards |
 | `recLength` | float | 1–5 | 5.0 | Max record length, snapped to {1,2,3,5} sec |
-| `autoEngage` | bool | — | true | Auto-engages freeze when recording stops |
+| `autoEngage` | bool | — | false | Auto-engages freeze when recording stops |
 | `midiMode` | bool | — | false | Effect mode (false) vs MIDI instrument mode (true) |
 | `rootNote` | int | 0–127 | 60 | MIDI root note (C4 = 60) for pitch reference |
 | `latch` | bool | — | false | MIDI: hold notes without sustain pedal |
@@ -100,6 +100,15 @@ pamplejuce/
 7. IFFT synthesis, OLA accumulate → output
 8. Dry/wet blend
 9. Output limiter (juce::dsp::Limiter, -1 dBFS ceiling)
+
+**Phrase formant path (PHRASE mode, formant > 0):**
+- Per-channel `phraseFormantRing` (kFFTSize circular buffer) captures raw phrase output samples each block
+- Every hop, `processPhraseFftFrame()` runs FFT on the ring, applies `donorEnvelope / phraseEnvelope` shaping, OLA-accumulates into `phraseFormantQueue`
+- Mixer blends: `rawPhrase * (1 - formant) + shapedPhrase * formant`; raw phrase used as fallback during 2048-sample warmup
+- State cleared in `setPhraseEngage(false)` and the deferred OLA flush
+
+**Phrase scatter (PHRASE mode, scatter > 0):**
+- At each hop boundary while `phraseEngaged`, jitters `phraseReadPosF` by `±scatter × donorLength × 0.25` (same range formula as grain scatter)
 
 **Donor slots (A/B/C):**
 - `setActiveSlot(n)` switches the working donorBuffer to slot n
@@ -135,7 +144,12 @@ pamplejuce/
 - Visible and active in both MIDI mode and effect mode (when effectAdsr is on)
 
 **Display area:** Dual-layer FFT spectrum (donor = green filled, live input = dim white outline),
-15 Hz refresh via timer. dB scale -60 to 0 dBFS, 256 display bins.
+15 Hz refresh via timer. dB scale -60 to 0 dBFS, 256 display bins. Horizontal dB grid lines at
+-12/-24/-36/-48 dBFS for level reference.
+
+**Window:** Resizable — `setResizeLimits(420, 480, 900, 1000)`. All layout in `resized()` is fully
+proportional to `W` and `H`. All paint() positions reference component bounds or compute from
+`headerH`/`contentY` local vars (proportional to H).
 
 **Tuner:** FFT-based fundamental detection updated every hop on ch 0; result exposed via
 `getTunerResult()`.
@@ -187,6 +201,7 @@ Feature branch pushes trigger no CI — develop freely.
 - **TextButton footswitches** — replace with proper custom painted toggle components (currently FreecoderLookAndFeel wraps TextButton; LED + footswitch look is painted but the underlying widget is still a TextButton)
 - **SIMD** — optimise magnitude blend loop in `SpectralEngine::processFFTFrame`
 - **Logo SVG** — wordmark is currently text-rendered in `paint()`; an SVG asset would be higher quality at any scale
+- **Waveform overview** — donor buffer waveform display in the centre panel would improve visibility of captured content; requires a thread-safe snapshot mechanism
 
 ---
 
