@@ -207,6 +207,13 @@
       box-shadow: 0 0 24px #39ff6a88 !important;
     }
 
+    /* Hide the Gumroad logo injected by their script */
+    a.gumroad-button::after,
+    a.gumroad-button .logo-full,
+    a.gumroad-button img {
+      display: none !important;
+    }
+
     .trial-smallprint {
       font-size: 0.72rem;
       color: #444;
@@ -392,7 +399,7 @@
     </p>
 
     <div class="warning">
-      &warning; &nbsp;This build is unsigned. On macOS, right-click the plugin bundle &rarr; Open &rarr; Allow, or run:<br>
+      &#9888; &nbsp;This build is unsigned. On macOS, right-click the plugin bundle &rarr; Open &rarr; Allow, or run:<br>
       <code>xattr -cr ~/Library/Audio/Plug-Ins/VST3/FREECODER.vst3</code>
     </div>
 
