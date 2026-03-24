@@ -7,19 +7,21 @@ const char* const PresetManager::kPresetExtension = ".freecoder";
 //==============================================================================
 const std::vector<PresetManager::FactoryPreset>& PresetManager::factoryList()
 {
-    //                     name              morph  grain  formant  scatter  drywet   pitch
+    //                        name                morph   grain   formant  scatter  drywet   pitch   phrase midi   rev    atk     dcy     sus     rel
     static const std::vector<FactoryPreset> list
     {
-        { "Init",           0.5f,  0.00f,  0.50f,  0.30f,  0.80f,   0.0f },
-        { "Shimmer Pad",    1.0f,  0.00f,  0.70f,  0.10f,  1.00f,   0.0f },
-        { "Grain Cloud",    0.5f,  0.90f,  0.30f,  0.80f,  0.90f,   0.0f },
-        { "Formant Choir",  0.6f,  0.10f,  1.00f,  0.20f,  0.90f,   0.0f },
-        { "Glitch Freeze",  1.0f,  0.40f,  0.20f,  1.00f,  1.00f,   0.0f },
-        { "Deep Freeze",    1.0f,  0.00f,  0.80f,  0.00f,  1.00f,   0.0f },
-        { "Subtle Texture", 0.3f,  0.20f,  0.40f,  0.30f,  0.60f,   0.0f },
-        { "Octave Up",      0.7f,  0.00f,  0.60f,  0.10f,  0.90f,  12.0f },
-        { "Octave Down",    0.7f,  0.00f,  0.60f,  0.10f,  0.90f, -12.0f },
-        { "Scatter Storm",  0.4f,  0.70f,  0.20f,  1.00f,  0.80f,   0.0f },
+        { "Init",             0.50f, 0.00f,  0.50f,  0.30f,  0.80f,   0.0f  },
+        { "Deep Freeze",      1.00f, 0.00f,  0.80f,  0.00f,  1.00f,   0.0f  },
+        { "Shimmer Freeze",   1.00f, 0.00f,  0.70f,  0.10f,  1.00f,   0.0f  },
+        { "Glitch Freeze",    1.00f, 0.40f,  0.20f,  1.00f,  1.00f,   0.0f  },
+        { "Phrase Loop",      0.30f, 0.00f,  0.30f,  0.10f,  0.90f,   0.0f,  true  },
+        { "Phrase+Formant",   0.30f, 0.00f,  0.80f,  0.10f,  0.90f,   0.0f,  true  },
+        { "Phrase Scatter",   0.30f, 0.20f,  0.40f,  0.80f,  0.85f,   0.0f,  true  },
+        { "Grain Cloud",      0.50f, 0.90f,  0.30f,  0.80f,  0.90f,   0.0f  },
+        { "Octave Shimmer",   0.70f, 0.00f,  0.60f,  0.10f,  0.90f,  12.0f  },
+        { "Pitch Down",       0.70f, 0.00f,  0.60f,  0.10f,  0.90f, -12.0f  },
+        { "MIDI Pad",         0.50f, 0.00f,  0.60f,  0.10f,  1.00f,   0.0f,  false, true,  false, 0.50f, 0.30f, 0.80f, 1.50f },
+        { "MIDI Pluck",       0.40f, 0.20f,  0.40f,  0.20f,  1.00f,   0.0f,  false, true,  false, 0.005f,0.15f, 0.00f, 0.30f },
     };
     return list;
 }
@@ -96,15 +98,21 @@ void PresetManager::applyFactory (int i)
         state.appendChild (child, nullptr);
     };
 
-    addParam ("morph",      p.morph);
-    addParam ("grain",      p.grain);
-    addParam ("formant",    p.formant);
-    addParam ("scatter",    p.scatter);
-    addParam ("drywet",     p.drywet);
-    addParam ("recTrigger", 0.0f);
-    addParam ("engage",     0.0f);
-    addParam ("pitch",      p.pitch);
-    addParam ("reverse",    0.0f);
+    addParam ("morph",        p.morph);
+    addParam ("grain",        p.grain);
+    addParam ("formant",      p.formant);
+    addParam ("scatter",      p.scatter);
+    addParam ("drywet",       p.drywet);
+    addParam ("recTrigger",   0.0f);
+    addParam ("engage",       0.0f);
+    addParam ("pitch",        p.pitch);
+    addParam ("reverse",      p.reverse      ? 1.0f : 0.0f);
+    addParam ("phraseEngage", p.phraseEngage ? 1.0f : 0.0f);
+    addParam ("midiMode",     p.midiMode     ? 1.0f : 0.0f);
+    addParam ("adsrAttack",   p.adsrAttack);
+    addParam ("adsrDecay",    p.adsrDecay);
+    addParam ("adsrSustain",  p.adsrSustain);
+    addParam ("adsrRelease",  p.adsrRelease);
 
     apvts.replaceState (state);
     // Donor buffer intentionally preserved — user keeps their recording

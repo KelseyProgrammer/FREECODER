@@ -41,6 +41,13 @@ private:
     {
         const char* name;
         float morph, grain, formant, scatter, drywet, pitch;
+        bool  phraseEngage = false;
+        bool  midiMode     = false;
+        bool  reverse      = false;
+        float adsrAttack   = 0.01f;
+        float adsrDecay    = 0.20f;
+        float adsrSustain  = 1.00f;
+        float adsrRelease  = 0.50f;
     };
     static const std::vector<FactoryPreset>& factoryList();
     int numFactory() const;

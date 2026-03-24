@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include "PresetManager.h"
+#include "FootswitchButton.h"
 #include "BinaryData.h"
 #include "melatonin_inspector/melatonin_inspector.h"
 
@@ -35,8 +36,8 @@ private:
     juce::Slider pitchSlider   { juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox };
 
     // Footswitches
-    juce::TextButton recButton     { "REC" };
-    juce::TextButton engageButton  { "ENGAGE" };
+    FootswitchButton recButton     { "REC" };
+    FootswitchButton engageButton  { "FREEZE" };
     juce::TextButton reverseButton { "REVERSE" };
     juce::TextButton phraseButton  { "PHRASE" };
 
@@ -106,6 +107,9 @@ private:
     juce::TextButton prevPresetButton { "<" };
     juce::TextButton nextPresetButton { ">" };
     juce::TextButton savePresetButton { "SAVE" };
+
+    // Logo SVG (loaded from BinaryData in constructor)
+    std::unique_ptr<juce::Drawable> logoDrawable;
 
     // Dev inspector (tiny, tucked in corner)
     std::unique_ptr<melatonin::Inspector> inspector;
