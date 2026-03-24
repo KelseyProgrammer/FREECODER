@@ -218,16 +218,16 @@ Feature branch pushes trigger no CI — develop freely.
 ## What Remains
 
 ### High priority (v0.3)
-- **SIMD** — optimise magnitude blend loop in `SpectralEngine::processFFTFrame` (1025-bin inner loop, called every hop)
+- **SIMD** — ~~done~~: Pass 1 (blend) uses `FloatVectorOperations` (guaranteed SIMD); Pass 2 (formant) split into 3 sub-passes so energy reductions and gain application each auto-vectorise independently
 - **Parameter smoothing on preset load** — ~~done~~: `requestSnapSmoothers()` is called after `replaceState()` in all three paths (factory preset, user preset, DAW state restore); `snapSmoothers()` snaps all SmoothedValues on the next audio block
-- **Test coverage** — `SpectralEngineTests.cpp` covers basics; scatter crossfade, waveform snapshot, and MIDI voice steal have no tests yet
+- **Test coverage** — ~~done~~: `SpectralEngineTests.cpp` covers blend math, state management, waveform snapshot, scatter crossfade, MIDI voice steal (16 test cases, 163 872 assertions)
 - **AU validation** — ~~done~~: `auval -v aumf Frcd Amnt` passes clean (confirmed 0.2.5)
 
 ### Medium priority
 - **Code signing / notarization** — plugin is currently unsigned; users must manually allow via `xattr -cr` or right-click → Open. Requires Apple Developer account + CI secrets for automated signing
 - **Windows testing** — CI builds Windows VST3 but it has not been manually tested in a DAW
-- **Mono input handling** — `isBusesLayoutSupported` rejects mono in; a utility note in the manual covers this, but accepting mono + upmixing internally would be more DAW-friendly
-- **Resizable window persistence** — window size is not saved to plugin state; reopening the editor resets to 540×600
+- **Mono input handling** — ~~done~~: `isBusesLayoutSupported` accepts mono in + stereo out; `processBlock` upmixes ch 0 → ch 1 before engine processing
+- **Resizable window persistence** — ~~done~~: `savedEditorWidth/Height` saved in `getStateInformation`, restored in `setStateInformation`; editor reads them at construction via `setSize()`
 
 ### Lower priority / polish
 - **FootswitchButton for PHRASE + REVERSE** — currently still TextButton; would complete the visual consistency of all four footswitches

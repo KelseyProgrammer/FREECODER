@@ -567,18 +567,33 @@ void SpectralEngine::processFFTFrame (int chIdx)
     }
 
     // ── Pass 2: formant envelope transfer (energy-normalised) ─────────────────
-    // Renormalise after shaping so formant only changes spectral shape, not volume.
+    // Split into 3 sub-passes so each is auto-vectorisable independently:
+    //   A) reduce energyBefore (dot-product reduction, no write to blendedMag)
+    //   B) compute per-bin gains and apply in one write pass (no accumulation)
+    //   C) reduce energyAfter, then one scalar-broadcast multiply via FloatVectorOperations
     if (hasDonor && fm > 0.0f)
     {
-        float energyBefore = 0.0f, energyAfter = 0.0f;
+        // A) energy before shaping (independent reads → vectorisable reduction)
+        float energyBefore = 0.0f;
+        for (int k = 0; k < kNumBins; ++k)
+            energyBefore += blendedMag[k] * blendedMag[k];
+
+        // B) per-bin gain and in-place multiply (no loop-carried dependency on blendedMag
+        //    between iterations → auto-vectorisable by the compiler)
+        float gainBuf[kNumBins];
         for (int k = 0; k < kNumBins; ++k)
         {
-            energyBefore += blendedMag[k] * blendedMag[k];
             const float liveEnv = std::max (liveEnvelope[k], 1e-6f);
             const float ratio   = juce::jlimit (0.1f, 10.0f, donorEnvelope[k] / liveEnv);
-            blendedMag[k] *= juce::jmax (0.0f, 1.0f + fm * (ratio - 1.0f));
-            energyAfter += blendedMag[k] * blendedMag[k];
+            gainBuf[k]          = juce::jmax (0.0f, 1.0f + fm * (ratio - 1.0f));
         }
+        juce::FloatVectorOperations::multiply (blendedMag.data(), gainBuf, kNumBins);
+
+        // C) energy after shaping + scalar-broadcast normalise
+        float energyAfter = 0.0f;
+        for (int k = 0; k < kNumBins; ++k)
+            energyAfter += blendedMag[k] * blendedMag[k];
+
         if (energyAfter > 1e-12f)
             juce::FloatVectorOperations::multiply (blendedMag.data(),
                                                    std::sqrt (energyBefore / energyAfter),
