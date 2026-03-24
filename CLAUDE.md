@@ -15,7 +15,7 @@ Built on the [Pamplejuce](https://github.com/sudara/pamplejuce) template (JUCE 8
 
 | Field | Value |
 |---|---|
-| Version | 0.2.5 |
+| Version | 0.2.6 |
 | Plugin Name | FREECODER |
 | Manufacturer | Ament Audio |
 | Manufacturer Code | `Amnt` |
@@ -26,7 +26,7 @@ Built on the [Pamplejuce](https://github.com/sudara/pamplejuce) template (JUCE 8
 | NEEDS_MIDI_INPUT | TRUE |
 | Channels | Stereo in + stereo out |
 
-AU validation: `auval -v aufx Frcd Amnt` (lowercase codes)
+AU validation: `auval -v aumf Frcd Amnt` (type is `aumf` — music effect — because NEEDS_MIDI_INPUT is TRUE)
 
 ---
 
@@ -66,7 +66,7 @@ pamplejuce/
 |---|---|---|---|---|
 | `morph` | float | 0–1 | 0.5 | Phrase loop (0) ↔ spectral freeze (1) |
 | `grain` | float | 0–1 | 0.0 | Granular texture amount |
-| `formant` | float | 0–1 | 0.5 | Formant envelope transfer intensity; in PHRASE mode, shapes phrase playback through donor spectral envelope via a second OLA path |
+| `formant` | float | 0–1 | 0.5 | Formant envelope transfer intensity; in PHRASE mode, cross-synthesises the phrase with the live input's spectral envelope (phrase takes on live input's timbral character) via a second OLA path |
 | `scatter` | float | 0–1 | 0.3 | Grain position randomisation + phrase playhead jitter (in PHRASE mode) |
 | `drywet` | float | 0–1 | 0.8 | Final dry/wet blend |
 | `pitch` | float | -12–+12 | 0.0 | Phrase pitch shift (semitones) |
@@ -110,10 +110,11 @@ pamplejuce/
 8. Dry/wet blend
 9. Output limiter (juce::dsp::Limiter, -1 dBFS ceiling)
 
-**Phrase formant path (PHRASE mode, formant > 0):**
+**Phrase formant path (PHRASE mode, formant > 0) — cross-synthesis:**
 - Per-channel `phraseFormantRing` (kFFTSize circular buffer) captures raw phrase output samples each block
-- Every hop, `processPhraseFftFrame()` runs FFT on the ring, applies `donorEnvelope / phraseEnvelope` shaping, OLA-accumulates into `phraseFormantQueue`
-- Mixer blends: `rawPhrase * (1 - formant) + shapedPhrase * formant`; raw phrase used as fallback during 2048-sample warmup
+- Every hop, `processPhraseFftFrame()` runs FFT on the ring, applies `liveEnvelope / phraseEnvelope` shaping (cross-synthesis: phrase takes on live input's timbral character), OLA-accumulates into `phraseFormantQueue`
+- `liveEnvelope` is populated by the just-completed `processFFTFrame` passes; `blendedMag` is used as scratch for the phrase envelope
+- Mixer blends: constant-power crossfade `rawPhrase * sqrt(1-formant) + shapedPhrase * sqrt(formant)`; raw phrase used as fallback during 2048-sample warmup
 - State cleared in `setPhraseEngage(false)` and the deferred OLA flush
 
 **Phrase scatter (PHRASE mode, scatter > 0):**
@@ -218,9 +219,9 @@ Feature branch pushes trigger no CI — develop freely.
 
 ### High priority (v0.3)
 - **SIMD** — optimise magnitude blend loop in `SpectralEngine::processFFTFrame` (1025-bin inner loop, called every hop)
-- **Parameter smoothing on preset load** — `apvts.replaceState()` causes a hard jump in all smoothed values; add a post-load ramp or use `SmoothedValue::setCurrentAndTargetValue` to prevent audio glitches when switching presets mid-playback
+- **Parameter smoothing on preset load** — ~~done~~: `requestSnapSmoothers()` is called after `replaceState()` in all three paths (factory preset, user preset, DAW state restore); `snapSmoothers()` snaps all SmoothedValues on the next audio block
 - **Test coverage** — `SpectralEngineTests.cpp` covers basics; scatter crossfade, waveform snapshot, and MIDI voice steal have no tests yet
-- **AU validation** — run `auval -v aufx Frcd Amnt` and confirm clean pass before any release
+- **AU validation** — ~~done~~: `auval -v aumf Frcd Amnt` passes clean (confirmed 0.2.5)
 
 ### Medium priority
 - **Code signing / notarization** — plugin is currently unsigned; users must manually allow via `xattr -cr` or right-click → Open. Requires Apple Developer account + CI secrets for automated signing

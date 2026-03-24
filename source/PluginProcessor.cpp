@@ -331,7 +331,10 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
         juce::String xmlStr (static_cast<const char*> (xmlBlock.getData()), (size_t) xmlLen);
         if (auto xml = juce::XmlDocument::parse (xmlStr))
             if (xml->hasTagName (apvts.state.getType()))
+            {
                 apvts.replaceState (juce::ValueTree::fromXml (*xml));
+                spectralEngine.requestSnapSmoothers();
+            }
 
         // Never restore recTrigger as true — it would fire startRecording on the first
         // processBlock and wipe the donor buffer we're about to restore below.

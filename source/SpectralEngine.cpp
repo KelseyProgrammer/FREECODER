@@ -617,10 +617,10 @@ void SpectralEngine::processFFTFrame (int chIdx)
 }
 
 //==============================================================================
-// Applies donor formant envelope to the phrase playback stream.
+// Cross-synthesis: shapes the phrase playback stream toward the live input's spectral envelope.
 // Called once per channel at each hop boundary when phraseEngaged && formant > 0.
-// Uses the same shared scratch buffers as processFFTFrame — safe because this
-// runs after all processFFTFrame calls have completed for the hop.
+// liveEnvelope (set by processFFTFrame) is the cross-synthesis target; blendedMag is used as
+// scratch for the phrase envelope.  Safe: runs after all processFFTFrame calls for the hop.
 void SpectralEngine::processPhraseFftFrame (int chIdx)
 {
     auto& cs = ch[chIdx];
@@ -642,18 +642,21 @@ void SpectralEngine::processPhraseFftFrame (int chIdx)
         inputPhase[k] = std::atan2 (im, re);
     }
 
-    // Compute phrase spectral envelope (reuses liveEnvelope scratch)
-    computeEnvelope (inputMag.data(), liveEnvelope.data(), kNumBins, 50);
+    // Compute phrase spectral envelope into blendedMag (spare scratch not used in this path).
+    // liveEnvelope holds the live-input envelope from the just-completed processFFTFrame pass;
+    // use it as the cross-synthesis target so the phrase takes on the live input's timbral
+    // character rather than circularly shaping toward its own (identical) envelope.
+    computeEnvelope (inputMag.data(), blendedMag.data(), kNumBins, 50);
 
-    // Shape phrase spectrum toward donor's formant envelope (energy-normalised)
+    // Shape phrase spectrum toward live input's formant envelope (cross-synthesis, energy-normalised)
     float energyBefore = 0.0f, energyAfter = 0.0f;
     for (int k = 0; k < kNumBins; ++k)
         energyBefore += inputMag[k] * inputMag[k];
 
     for (int k = 0; k < kNumBins; ++k)
     {
-        const float phraseEnv = std::max (liveEnvelope[k], 1e-6f);
-        const float ratio     = juce::jlimit (0.1f, 10.0f, donorEnvelope[k] / phraseEnv);
+        const float phraseEnv = std::max (blendedMag[k], 1e-6f);
+        const float ratio     = juce::jlimit (0.1f, 10.0f, liveEnvelope[k] / phraseEnv);
         const float shaped    = inputMag[k] * juce::jmax (0.0f, 1.0f + formant * (ratio - 1.0f));
         energyAfter += shaped * shaped;
 
