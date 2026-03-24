@@ -341,7 +341,7 @@ void PluginEditor::timerCallback()
         slotButtons[i]->setColour (juce::TextButton::textColourOffId,
                                    isActive  ? juce::Colour (0xff44ff44) :
                                    hasData   ? juce::Colour (0xff00cc00) :
-                                               juce::Colour (0xff2a2a2a));
+                                               juce::Colour (0xff666666));
         slotButtons[i]->setColour (juce::TextButton::buttonColourId,
                                    isActive  ? juce::Colour (0xff0d2a0d) :
                                    hasData   ? juce::Colour (0xff081408) :
@@ -500,13 +500,13 @@ void PluginEditor::paint (juce::Graphics& g)
     // ── Slider section ──────────────────────────────────────────────────────
     auto drawSliderLabels = [&] (int lx, int ly, const juce::String& name)
     {
-        g.setColour (juce::Colours::white);
+        g.setColour (juce::Colour (0xffcccccc));
         g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
         g.drawText (name, lx, ly, 100, 14, juce::Justification::centredLeft);
     };
 
-    drawSliderLabels (20,      morphSlider.getY() - 18,   "morph");
-    drawSliderLabels (W - 120, drywetSlider.getY() - 18,  "dry/wet");
+    drawSliderLabels (20,      morphSlider.getY() - 18,   "MORPH");
+    drawSliderLabels (W - 120, drywetSlider.getY() - 18,  "DRY / WET");
 
     // Value readouts
     g.setColour (juce::Colour (0xff44ff44));
@@ -516,9 +516,9 @@ void PluginEditor::paint (juce::Graphics& g)
 
     // Morph endpoint labels: PHRASE (0) on left, SPECTRAL (1) on right
     g.setColour (juce::Colour (0xff999999));
-    g.setFont (juce::FontOptions (9.5f));
-    g.drawText ("\u25c4 PHRASE",   20,                        morphSlider.getBottom() + 15, 90,  12, juce::Justification::centredLeft);
-    g.drawText ("SPECTRAL \u25ba", 20,                        morphSlider.getBottom() + 15, 218, 12, juce::Justification::centredRight);
+    g.setFont (juce::FontOptions (9.0f));
+    g.drawText ("< PHRASE",   20,  morphSlider.getBottom() + 15, 90,  12, juce::Justification::centredLeft);
+    g.drawText ("SPECTRAL >", 20,  morphSlider.getBottom() + 15, 218, 12, juce::Justification::centredRight);
 
     // ── Pad labels ──────────────────────────────────────────────────────────
     const int lpad1Y = grainSlider.getY()   + grainSlider.getHeight()   / 2 - 10;
@@ -787,14 +787,14 @@ void PluginEditor::paint (juce::Graphics& g)
         const int labelY  = recLengthSlider.getY() - 13;
         static const float stops[]  = { 0.0f, 0.25f, 0.5f, 1.0f };
         static const char* labels[] = { "1s", "2s", "3s", "5s" };
-        g.setFont (juce::FontOptions (7.5f));
+        g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
         for (int t = 0; t < 4; ++t)
         {
             const int tx = sliderX + (int) (stops[t] * sliderW);
-            g.setColour (juce::Colour (0xff444444));
-            g.fillRect (tx, recLengthSlider.getY() - 4, 1, 4);
-            g.setColour (juce::Colour (0xff555555));
-            g.drawText (labels[t], tx - 8, labelY, 16, 12, juce::Justification::centred);
+            g.setColour (juce::Colour (0xff777777));
+            g.fillRect (tx, recLengthSlider.getY() - 5, 1, 5);
+            g.setColour (juce::Colour (0xff999999));
+            g.drawText (labels[t], tx - 10, labelY, 20, 13, juce::Justification::centred);
         }
 
         const float recSecs = (float) recLengthSlider.getValue();
@@ -803,12 +803,16 @@ void PluginEditor::paint (juce::Graphics& g)
         g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
         g.drawText (recLabel, recCx - 20, recLengthSlider.getBottom() + 2, 40, 12, juce::Justification::centred);
 
-        // LATCH label (MIDI mode, below phraseButton area)
+        // LATCH label — only in MIDI mode
         const bool isLatched = processorRef.apvts.getRawParameterValue ("latch")->load() > 0.5f;
-        g.setColour (isLatched ? juce::Colour (0xff44ffff) : juce::Colour (0xff555555));
-        g.setFont (juce::FontOptions (7.0f));
-        g.drawText ("HOLD NOTES", latchButton.getX() - 4, latchButton.getBottom() + 2,
-                    latchButton.getWidth() + 8, 10, juce::Justification::centred);
+        const bool isMidiForLatch = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+        if (isMidiForLatch)
+        {
+            g.setColour (isLatched ? juce::Colour (0xff44ffff) : juce::Colour (0xff777777));
+            g.setFont (juce::FontOptions (8.5f));
+            g.drawText ("HOLD NOTES", latchButton.getX() - 4, latchButton.getBottom() + 2,
+                        latchButton.getWidth() + 8, 12, juce::Justification::centred);
+        }
     }
 
 
