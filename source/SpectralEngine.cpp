@@ -980,15 +980,28 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                     ch[c].phraseFormantWritePos = (ch[c].phraseFormantWritePos + 1) & (kFFTSize - 1);
                 }
 
-                // Blend raw phrase with formant-shaped output (falls back to raw during warmup)
+                // Blend raw phrase with formant-shaped output (falls back to raw during warmup).
+                // Constant-power crossfade prevents energy drop when the two paths are decorrelated.
                 float shapedPhrase = rawPhrase;
                 if (formant > 0.0f && ch[c].phraseFormantQueuePos < kHopSize)
                     shapedPhrase = ch[c].phraseFormantQueue[ch[c].phraseFormantQueuePos++];
-                const float phraseOut = rawPhrase * (1.0f - formant) + shapedPhrase * formant;
+                const float fmSqrt  = std::sqrt (formant);
+                const float ifmSqrt = std::sqrt (1.0f - formant);
+                const float phraseOut = rawPhrase * ifmSqrt + shapedPhrase * fmSqrt;
 
                 const float wet = spectralWet * freezeGain * freezeWeight
                                 + phraseOut   * phraseGain * phraseWeight;
-                buffer.setSample (c, i, dry * (1.0f - dw * masterEnv) + wet * dw);
+
+                // Compensate for energy loss when formant decorrelates wet from dry in the
+                // linear dry/wet blend.  At formant=0 wet≈dry (correlated), comp→1.  At
+                // formant=1 the signals are decorrelated; constant-power scaling restores energy.
+                // Use effectiveWetG = dw * masterEnv so comp→1 when engage is fully off.
+                const float dryG    = 1.0f - dw * masterEnv;
+                const float wetGEff = dw * masterEnv;   // effective wet contribution
+                const float mixE    = dryG * dryG + wetGEff * wetGEff;
+                const float cp      = mixE > 1e-4f ? 1.0f / std::sqrt (mixE) : 1.0f;
+                const float comp    = 1.0f + (cp - 1.0f) * formant;
+                buffer.setSample (c, i, (dry * dryG + wet * dw) * comp);
             }
 
             // Advance phrase playhead; trigger crossfade on loop wrap
