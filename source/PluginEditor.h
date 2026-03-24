@@ -10,7 +10,8 @@ class FreecoderLookAndFeel;
 
 //==============================================================================
 class PluginEditor : public juce::AudioProcessorEditor,
-                     private juce::Timer
+                     private juce::Timer,
+                     private juce::ValueTree::Listener
 {
 public:
     explicit PluginEditor (PluginProcessor&);
@@ -21,6 +22,7 @@ public:
 
 private:
     void timerCallback() override;
+    void valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&) override;
 
     PluginProcessor& processorRef;
     std::unique_ptr<FreecoderLookAndFeel> laf;
@@ -37,9 +39,9 @@ private:
 
     // Footswitches
     FootswitchButton recButton     { "REC" };
+    FootswitchButton reverseButton { "REVERSE" };
+    FootswitchButton phraseButton  { "PHRASE" };
     FootswitchButton engageButton  { "FREEZE" };
-    juce::TextButton reverseButton { "REVERSE" };
-    juce::TextButton phraseButton  { "PHRASE" };
 
     // APVTS attachments
     using SA = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -110,6 +112,9 @@ private:
 
     // Logo SVG (loaded from BinaryData in constructor)
     std::unique_ptr<juce::Drawable> logoDrawable;
+
+    // Dirty state (parameter changed since last preset load/save)
+    bool isDirty = false;
 
     // Dev inspector (tiny, tucked in corner)
     std::unique_ptr<melatonin::Inspector> inspector;

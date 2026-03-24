@@ -168,9 +168,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
         btn->setColour (juce::TextButton::textColourOnId,  juce::Colour (0xff44ff44));
         addAndMakeVisible (btn);
     }
-    prevPresetButton.onClick = [this] { presetManager.previousPreset(); repaint(); };
-    nextPresetButton.onClick = [this] { presetManager.nextPreset();     repaint(); };
-    savePresetButton.onClick = [this] { presetManager.promptSavePreset (this);     };
+    prevPresetButton.onClick = [this] { presetManager.previousPreset(); isDirty = false; repaint(); };
+    nextPresetButton.onClick = [this] { presetManager.nextPreset();     isDirty = false; repaint(); };
+    savePresetButton.onClick = [this] { presetManager.promptSavePreset (this); isDirty = false; };
     for (auto* s : { &morphSlider, &drywetSlider })
     {
         s->setLookAndFeel (laf.get());
@@ -186,21 +186,9 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     pitchSlider.setRange (-12.0, 12.0, 0.1);  // semitones, overrides attachment default display
 
     addAndMakeVisible (recButton);
-    addAndMakeVisible (engageButton);
-
-    phraseButton.setClickingTogglesState (true);
-    phraseButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
-    phraseButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
-    phraseButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
-    phraseButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
-    addAndMakeVisible (phraseButton);
-
-    reverseButton.setClickingTogglesState (true);
-    reverseButton.setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff0a1a0a));
-    reverseButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
-    reverseButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff555555));
-    reverseButton.setColour (juce::TextButton::textColourOnId,  juce::Colour (0xff44ff44));
     addAndMakeVisible (reverseButton);
+    addAndMakeVisible (phraseButton);
+    addAndMakeVisible (engageButton);
 
     inspectButton.setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff111111));
     inspectButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xff2a2a2a));
@@ -306,6 +294,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
             logoDrawable = juce::Drawable::createFromSVG (*xml);
     }
 
+    processorRef.apvts.state.addListener (this);
     startTimerHz (15);
     setResizable (true, true);
     setResizeLimits (420, 480, 900, 1000);
@@ -314,11 +303,17 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
 PluginEditor::~PluginEditor()
 {
+    processorRef.apvts.state.removeListener (this);
     stopTimer();
     for (auto* s : { &morphSlider, &drywetSlider, &grainSlider, &scatterSlider, &formantSlider, &pitchSlider })
         s->setLookAndFeel (nullptr);
     for (auto* s : { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider })
         s->setLookAndFeel (nullptr);
+}
+
+void PluginEditor::valueTreePropertyChanged (juce::ValueTree&, const juce::Identifier&)
+{
+    isDirty = true;
 }
 
 void PluginEditor::timerCallback()
@@ -343,7 +338,6 @@ void PluginEditor::timerCallback()
     for (auto* s : { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider })
         s->setVisible (showAdsr);
     latchButton.setVisible (isMidi);
-    phraseButton.setVisible (!isMidi);
     effectAdsrButton.setVisible (!isMidi);  // ADSR toggle only makes sense in effect mode
 
     // Update slot button colours: active = bright green, has data = dim, empty = dark
@@ -508,7 +502,8 @@ void PluginEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colour (0xff44ff44));
     g.setFont (juce::FontOptions (12.0f).withStyle ("Bold"));
-    g.drawText (presetManager.getCurrentPresetName(), 52, headerH + 5, W - 160, 26, juce::Justification::centred);
+    const juce::String presetLabel = presetManager.getCurrentPresetName() + (isDirty ? " *" : "");
+    g.drawText (presetLabel, 52, headerH + 5, W - 160, 26, juce::Justification::centred);
 
     // ── Slider section ──────────────────────────────────────────────────────
     auto drawSliderLabels = [&] (int lx, int ly, const juce::String& name)
@@ -727,26 +722,77 @@ void PluginEditor::paint (juce::Graphics& g)
         g.fillRoundedRectangle (filled.toFloat(), 3.0f);
     }
 
-    // ── Footswitch labels ─────────────────────────────────────────────────────
-    const int recCx  = recButton.getBounds().getCentreX();
-    const int engCx  = engageButton.getBounds().getCentreX();
-    const int recBot = recButton.getBottom();
-    const int engBot = engageButton.getBottom();
+    // ── Footswitch labels (4-button row) ──────────────────────────────────────
+    const int recCx_p = recButton.getBounds().getCentreX();
+    const int revCx_p = reverseButton.getBounds().getCentreX();
+    const int phCx_p  = phraseButton.getBounds().getCentreX();
+    const int engCx_p = engageButton.getBounds().getCentreX();
+    const int recBot  = recButton.getBottom();
+    const int revBot  = reverseButton.getBottom();
+    const int phBot   = phraseButton.getBottom();
+    const int engBot  = engageButton.getBottom();
+    const bool showSubs = (W >= 460);
 
     // REC label + sublabel
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
-    g.drawText ("REC",    recCx - 50, recBot + 4,  100, 18, juce::Justification::centred);
-    g.setColour (juce::Colour (0xff555555));
-    g.setFont (juce::FontOptions (7.5f));
-    g.drawText ("CLICK TO RECORD", recCx - 55, recBot + 22, 110, 12, juce::Justification::centred);
+    g.drawText ("REC", recCx_p - 50, recBot + 4, 100, 18, juce::Justification::centred);
+    if (showSubs)
+    {
+        g.setColour (juce::Colour (0xff555555));
+        g.setFont (juce::FontOptions (7.5f));
+        g.drawText ("CLICK TO RECORD", recCx_p - 55, recBot + 22, 110, 12, juce::Justification::centred);
+    }
+
+    // REVERSE label + sublabel
+    {
+        const bool isReversed = processorRef.apvts.getRawParameterValue ("reverse")->load() > 0.5f;
+        g.setColour (isReversed ? juce::Colour (0xff44ff44) : juce::Colours::white);
+        g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+        g.drawText ("REV", revCx_p - 50, revBot + 4, 100, 18, juce::Justification::centred);
+        if (showSubs)
+        {
+            g.setColour (juce::Colour (0xff555555));
+            g.setFont (juce::FontOptions (7.5f));
+            g.drawText ("REVERSE LOOP", revCx_p - 55, revBot + 22, 110, 12, juce::Justification::centred);
+        }
+    }
+
+    // PHRASE label + sublabel
+    {
+        const bool isMidiForPh = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+        const bool isPhrased   = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
+        g.setColour (isPhrased ? juce::Colour (0xff44ff44) : juce::Colours::white);
+        g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+        g.drawText ("PHRASE", phCx_p - 50, phBot + 4, 100, 18, juce::Justification::centred);
+        if (showSubs)
+        {
+            g.setColour (juce::Colour (0xff555555));
+            g.setFont (juce::FontOptions (7.5f));
+            g.drawText (isMidiForPh ? "LATCH NOTES" : "PHRASE LOOP", phCx_p - 55, phBot + 22, 110, 12, juce::Justification::centred);
+        }
+    }
+
+    // FREEZE label + sublabel
+    {
+        const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
+        g.setColour (isEngaged ? juce::Colour (0xff44ff44) : juce::Colours::white);
+        g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+        g.drawText ("FREEZE", engCx_p - 55, engBot + 4, 110, 18, juce::Justification::centred);
+        if (showSubs)
+        {
+            g.setColour (juce::Colour (0xff555555));
+            g.setFont (juce::FontOptions (7.5f));
+            g.drawText ("SPECTRAL FREEZE", engCx_p - 60, engBot + 22, 120, 12, juce::Justification::centred);
+        }
+    }
 
     // Rec length labels: 1s / 2s / 3s / 5s ticks above slider
     {
+        const int recCx = recCx_p;
         const int sliderX = recCx - 52;
         const int sliderW = 104;
         const int labelY  = recLengthSlider.getY() - 13;
-        // 4 stops at positions 1,2,3,5 mapped into [1,5] range → normalized 0,0.25,0.5,1.0
         static const float stops[]  = { 0.0f, 0.25f, 0.5f, 1.0f };
         static const char* labels[] = { "1s", "2s", "3s", "5s" };
         g.setFont (juce::FontOptions (7.5f));
@@ -759,47 +805,22 @@ void PluginEditor::paint (juce::Graphics& g)
             g.drawText (labels[t], tx - 8, labelY, 16, 12, juce::Justification::centred);
         }
 
-        // Current value highlight
         const float recSecs = (float) recLengthSlider.getValue();
         const juce::String recLabel = juce::String ((int) recSecs) + "s";
         g.setColour (juce::Colour (0xff44ff44));
         g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
         g.drawText (recLabel, recCx - 20, recLengthSlider.getBottom() + 2, 40, 12, juce::Justification::centred);
 
-        // AUTO button label
         g.setColour (juce::Colour (0xff555555));
         g.setFont (juce::FontOptions (7.0f));
         g.drawText ("AUTO ENGAGE", recCx - 40, autoEngageButton.getBottom() + 2, 80, 10, juce::Justification::centred);
 
-        // LATCH label
+        // LATCH label (MIDI mode, below phraseButton area)
         const bool isLatched = processorRef.apvts.getRawParameterValue ("latch")->load() > 0.5f;
         g.setColour (isLatched ? juce::Colour (0xff44ffff) : juce::Colour (0xff555555));
         g.setFont (juce::FontOptions (7.0f));
         g.drawText ("HOLD NOTES", latchButton.getX() - 4, latchButton.getBottom() + 2,
                     latchButton.getWidth() + 8, 10, juce::Justification::centred);
-    }
-
-    // FREEZE label + sublabel
-    const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
-    g.setColour (isEngaged ? juce::Colour (0xff44ff44) : juce::Colours::white);
-    g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
-    g.drawText ("FREEZE",    engCx - 55, engBot + 4,  110, 18, juce::Justification::centred);
-    g.setColour (juce::Colour (0xff555555));
-    g.setFont (juce::FontOptions (7.5f));
-    g.drawText ("SPECTRAL FREEZE", engCx - 60, engBot + 22, 120, 12, juce::Justification::centred);
-
-    // PHRASE button label (effect mode only)
-    {
-        const bool isMidi2    = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
-        const bool isPhrased  = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
-        if (!isMidi2)
-        {
-            g.setColour (isPhrased ? juce::Colour (0xff44ff44) : juce::Colour (0xff555555));
-            g.setFont (juce::FontOptions (7.0f));
-            g.drawText ("PHRASE LOOP",
-                        phraseButton.getX() - 4, phraseButton.getBottom() + 2,
-                        phraseButton.getWidth() + 8, 10, juce::Justification::centred);
-        }
     }
 
 
@@ -946,22 +967,25 @@ void PluginEditor::resized()
         exportButton.setBounds (startX + 3 * (btnW + gap), btnY, btnW, btnH);
     }
 
-    // ── Footswitches ─────────────────────────────────────────────────────────────
-    const int swSize = juce::roundToInt (juce::jmin (W * 0.163f, H * 0.147f));  // ~88
-    const int swY    = pad2Y + padH + juce::roundToInt (H * 0.040f);            // ~386
-    recButton.setBounds     (W / 4 - swSize / 2,     swY, swSize, swSize);
-    engageButton.setBounds  (3 * W / 4 - swSize / 2, swY, swSize, swSize);
-    reverseButton.setBounds (W / 2 - 38, swY + swSize / 2 - 11, 76, 22);
-    phraseButton.setBounds  (W / 2 - 28, swY + swSize / 2 + 14, 56, 16);
-    latchButton.setBounds   (W / 2 - 28, swY + swSize / 2 + 14, 56, 16);
+    // ── Footswitches (4-button row: REC / REVERSE / PHRASE / FREEZE) ─────────────
+    const int swSize = juce::roundToInt (juce::jmin (W * 0.130f, H * 0.118f));  // ~70
+    const int swY    = pad2Y + padH + juce::roundToInt (H * 0.040f);
+    const int recCx  = W / 5;
+    const int revCx  = W * 2 / 5;
+    const int phCx   = W * 3 / 5;
+    const int engCx  = W * 4 / 5;
+    recButton.setBounds     (recCx - swSize / 2, swY, swSize, swSize);
+    reverseButton.setBounds (revCx - swSize / 2, swY, swSize, swSize);
+    phraseButton.setBounds  (phCx  - swSize / 2, swY, swSize, swSize);
+    engageButton.setBounds  (engCx - swSize / 2, swY, swSize, swSize);
 
     // ── Rec controls (below REC footswitch) ──────────────────────────────────────
     {
-        const int recCx   = W / 4;
         const int belowSw = swY + swSize;
-        recLengthSlider.setBounds  (recCx - 52, belowSw + juce::roundToInt (H * 0.060f), 104, 16); // +36
-        autoEngageButton.setBounds (recCx - 24, belowSw + juce::roundToInt (H * 0.095f),  48, 16); // +57
-        effectAdsrButton.setBounds (3 * W / 4 - 24, belowSw + juce::roundToInt (H * 0.060f), 48, 16);
+        recLengthSlider.setBounds  (recCx - 52, belowSw + juce::roundToInt (H * 0.060f), 104, 16);
+        autoEngageButton.setBounds (recCx - 24, belowSw + juce::roundToInt (H * 0.095f),  48, 16);
+        effectAdsrButton.setBounds (engCx - 24, belowSw + juce::roundToInt (H * 0.060f),  48, 16);
+        latchButton.setBounds      (phCx  - 28, belowSw + juce::roundToInt (H * 0.060f),  56, 16);
     }
 
     // ── MIDI utility row ─────────────────────────────────────────────────────────
