@@ -15,7 +15,7 @@ Built on the [Pamplejuce](https://github.com/sudara/pamplejuce) template (JUCE 8
 
 | Field | Value |
 |---|---|
-| Version | 0.2.2 |
+| Version | 0.2.3 |
 | Plugin Name | FREECODER |
 | Manufacturer | Ament Audio |
 | Manufacturer Code | `Amnt` |
