@@ -60,6 +60,11 @@ public:
         return spectralEngine.getTunerResult (out);
     }
 
+    bool getWaveformSnapshot (SpectralEngine::WaveformSnapshot& out)
+    {
+        return spectralEngine.getWaveformSnapshot (out);
+    }
+
     // Donor slot access for the UI
     void requestSlot    (int n)  { requestedSlot.store (n); }
     int  getActiveSlot  () const { return spectralEngine.getActiveSlot(); }

@@ -116,7 +116,8 @@ void SpectralEngine::stopRecording()
         // not silence at position 0 which may precede the actual content.
         donorReadPos = juce::jmax (0, donorLength - kFFTSize * 2);
         analyseDonorFrame();
-        updateVisSnapshot();  // show captured spectrum in display immediately, before ENGAGE
+        updateVisSnapshot();       // show captured spectrum immediately, before ENGAGE
+        updateWaveformSnapshot();  // show captured waveform immediately
         autoEngagePending.store (true);
 
         // Snapshot working buffer into the active slot (pre-allocated, no heap use)
@@ -267,7 +268,10 @@ void SpectralEngine::setDonorData (const juce::AudioBuffer<float>& buf, int leng
     hasDonor       = safeLen >= kFFTSize;
 
     if (hasDonor)
+    {
         analyseDonorFrame();
+        updateWaveformSnapshot();
+    }
 }
 
 void SpectralEngine::importDonorData (const juce::AudioBuffer<float>& buf, int length)
@@ -401,6 +405,46 @@ bool SpectralEngine::getSpectrumSnapshot (SpectrumSnapshot& out) const
     if (!visPending.hasData) return false;
     out = visPending;
     return true;   // deliberately does NOT clear hasData — display keeps last frame when idle
+}
+
+//==============================================================================
+// Waveform overview helpers
+//==============================================================================
+void SpectralEngine::updateWaveformSnapshot() noexcept
+{
+    if (!hasDonor || donorLength == 0) return;
+    if (!waveformLock.tryEnter()) return;
+
+    const int    len = donorLength;
+    const float* src = donorBuffer.getReadPointer (0);
+
+    float maxPeak = 1e-6f;
+    for (int i = 0; i < kWavePoints; ++i)
+    {
+        const int start = i * len / kWavePoints;
+        const int end   = juce::jmin ((i + 1) * len / kWavePoints, len);
+        float pk = 0.0f;
+        for (int s = start; s < end; ++s)
+            pk = std::max (pk, std::abs (src[s]));
+        waveformPending.peaks[(size_t) i] = pk;
+        maxPeak = std::max (maxPeak, pk);
+    }
+
+    const float invMax = 1.0f / maxPeak;
+    for (auto& p : waveformPending.peaks)
+        p *= invMax;
+
+    waveformPending.hasData = true;
+    waveformLock.exit();
+}
+
+bool SpectralEngine::getWaveformSnapshot (WaveformSnapshot& out) const
+{
+    juce::ScopedLock sl (waveformLock);
+    if (!waveformPending.hasData) return false;
+    out          = waveformPending;
+    out.playhead = waveformPlayheadAtomic.load (std::memory_order_relaxed);
+    return true;
 }
 
 //==============================================================================
@@ -765,6 +809,11 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             if (phraseEngaged && hasDonor && formant > 0.0f)
                 for (int c = 0; c < numCh; ++c)
                     processPhraseFftFrame (c);
+
+            // Update playhead for waveform display
+            if (hasDonor && donorLength > 0)
+                waveformPlayheadAtomic.store (phraseReadPosF / (float) donorLength,
+                                              std::memory_order_relaxed);
         }
 
         const float dw = dryWetSmoothed.getNextValue();

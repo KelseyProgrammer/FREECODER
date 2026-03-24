@@ -84,6 +84,17 @@ public:
     };
     bool getTunerResult (TunerResult& out) const;
 
+    // ── Waveform overview ──────────────────────────────────────────────────
+    // Audio thread writes non-blocking; UI thread reads with a lock.
+    static constexpr int kWavePoints = 512;   // display resolution (time-domain segments)
+    struct WaveformSnapshot
+    {
+        std::array<float, kWavePoints> peaks {};   // peak-abs per segment, 0–1 normalised
+        float playhead = 0.0f;                     // 0–1 phrase playhead position
+        bool  hasData  = false;
+    };
+    bool getWaveformSnapshot (WaveformSnapshot& out) const;
+
 private:
     static constexpr int kFFTOrder = 11;
     static constexpr int kFFTSize  = 1 << kFFTOrder;  // 2048
@@ -187,6 +198,12 @@ private:
     mutable juce::CriticalSection tunerLock;
     mutable TunerResult           tunerPending;
     void updateTunerResult() noexcept;             // called from audio thread (ch 0 only)
+
+    // Waveform overview — audio thread writes, UI thread reads
+    mutable juce::CriticalSection waveformLock;
+    mutable WaveformSnapshot      waveformPending;
+    std::atomic<float>            waveformPlayheadAtomic { 0.0f };
+    void updateWaveformSnapshot() noexcept;        // call after donor buffer changes
     std::vector<float> donorPhasePrev;  // kNumBins — phase from last donor analysis
     std::vector<float> donorTrueFreq;   // kNumBins — estimated radians-per-hop per bin
     std::vector<float> donorPhaseAccum; // kNumBins — running phase for frozen playback

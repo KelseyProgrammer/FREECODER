@@ -58,9 +58,10 @@ private:
     float donorFillLevel = 0.0f;
     juce::Rectangle<int> displayBounds;
 
-    // Spectrum visualizer + tuner
+    // Spectrum visualizer + tuner + waveform
     SpectralEngine::SpectrumSnapshot spectrumSnapshot;
     SpectralEngine::TunerResult      tunerResult;
+    SpectralEngine::WaveformSnapshot waveformSnapshot;
 
     // MIDI mode controls
     juce::TextButton modeButton     { "EFFECT" };

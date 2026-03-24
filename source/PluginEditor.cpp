@@ -405,9 +405,10 @@ void PluginEditor::timerCallback()
     if (std::abs (newLevel - donorFillLevel) > 0.001f)
         donorFillLevel = newLevel;
 
-    // Fetch latest spectrum + tuner result
+    // Fetch latest spectrum + tuner + waveform
     processorRef.getSpectrumSnapshot (spectrumSnapshot);
     processorRef.getTunerResult (tunerResult);
+    processorRef.getWaveformSnapshot (waveformSnapshot);
     repaint (displayBounds);
 
     // Repaint footswitch area when engage state changes so the label colour updates
@@ -642,9 +643,13 @@ void PluginEditor::paint (juce::Graphics& g)
                 displayBounds.getX(), displayBounds.getY() + 6,
                 displayBounds.getWidth(), 14, juce::Justification::centred);
 
-    // ── Spectrum visualizer ─────────────────────────────────────────────────
+    // ── Spectrum + Waveform display ─────────────────────────────────────────
     {
-        auto specArea = displayBounds.reduced (8, 8).withTrimmedTop (16).withTrimmedBottom (20);
+        auto fullArea = displayBounds.reduced (8, 8).withTrimmedTop (16).withTrimmedBottom (20);
+        const int waveH   = fullArea.getHeight() * 2 / 5;
+        const int splitY  = fullArea.getBottom() - waveH;
+        auto specArea = fullArea.withBottom (splitY - 2);
+        auto waveArea = fullArea.withTop    (splitY + 2);
         const float bx    = (float) specArea.getX();
         const float by    = (float) specArea.getY();
         const float bw    = (float) specArea.getWidth();
@@ -705,10 +710,10 @@ void PluginEditor::paint (juce::Graphics& g)
         }
         else
         {
-            // No data yet
+            // No data yet — placeholder in spectrum area only
             g.setColour (juce::Colour (0xff1a3d1a));
             g.setFont (juce::FontOptions (28.0f).withStyle ("Bold"));
-            g.drawText ("--", displayBounds.reduced (8, 16).toFloat(), juce::Justification::centred);
+            g.drawText ("--", specArea.toFloat(), juce::Justification::centred);
         }
 
         // Recording indicator / fill % (top-right corner of display)
@@ -720,6 +725,61 @@ void PluginEditor::paint (juce::Graphics& g)
             g.drawText (juce::String ((int) (donorFillLevel * 100)) + "%",
                         specArea.getRight() - 36, specArea.getY(), 34, 14,
                         juce::Justification::centredRight);
+        }
+
+        // ── Waveform overview ────────────────────────────────────────────────
+        // Thin separator between spectrum and waveform
+        g.setColour (juce::Colour (0xff1a3d1a));
+        g.drawHorizontalLine (splitY, (float) fullArea.getX(), (float) fullArea.getRight());
+
+        {
+            const float wx   = (float) waveArea.getX();
+            const float wy   = (float) waveArea.getY();
+            const float ww   = (float) waveArea.getWidth();
+            const float wh   = (float) waveArea.getHeight();
+            const float cy   = wy + wh * 0.5f;
+            const float halfH = wh * 0.44f;
+
+            if (waveformSnapshot.hasData)
+            {
+                const int nPts = SpectralEngine::kWavePoints;
+
+                // Symmetric filled waveform (top then bottom mirror)
+                juce::Path wavePath;
+                wavePath.startNewSubPath (wx, cy);
+                for (int i = 0; i < nPts; ++i)
+                {
+                    const float px = wx + (float) i / (float) nPts * ww;
+                    wavePath.lineTo (px, cy - waveformSnapshot.peaks[(size_t) i] * halfH);
+                }
+                wavePath.lineTo (wx + ww, cy);
+                for (int i = nPts - 1; i >= 0; --i)
+                {
+                    const float px = wx + (float) i / (float) nPts * ww;
+                    wavePath.lineTo (px, cy + waveformSnapshot.peaks[(size_t) i] * halfH);
+                }
+                wavePath.closeSubPath();
+
+                g.setColour (juce::Colour (0xff163d16));
+                g.fillPath (wavePath);
+                g.setColour (juce::Colour (0xff44ff44).withAlpha (0.6f));
+                g.strokePath (wavePath, juce::PathStrokeType (1.0f));
+
+                // Playhead — white vertical bar when phrase is engaged
+                const bool phraseOn = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
+                if (phraseOn)
+                {
+                    const float phX = wx + juce::jlimit (0.0f, 1.0f, waveformSnapshot.playhead) * ww;
+                    g.setColour (juce::Colours::white.withAlpha (0.75f));
+                    g.drawLine (phX, wy, phX, wy + wh, 1.5f);
+                }
+            }
+            else
+            {
+                // No donor yet — dim placeholder
+                g.setColour (juce::Colour (0xff0a1a0a));
+                g.fillRect (waveArea);
+            }
         }
     }
 
