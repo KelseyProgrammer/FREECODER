@@ -173,6 +173,17 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         spectralEngine.setRecordLimitSamples (samples);
     }
 
+    // On preset load, snap all continuous smoothers to the incoming values immediately
+    // (avoids a 20 ms ramp that sounds like pitch-slide / spectral sweep on preset change).
+    if (spectralEngine.consumeSnapSmoothersPending())
+        spectralEngine.snapSmoothers (
+            apvts.getRawParameterValue ("morph")   ->load(),
+            apvts.getRawParameterValue ("grain")   ->load(),
+            apvts.getRawParameterValue ("formant") ->load(),
+            apvts.getRawParameterValue ("scatter") ->load(),
+            apvts.getRawParameterValue ("drywet")  ->load(),
+            apvts.getRawParameterValue ("pitch")   ->load());
+
     spectralEngine.setMorph   (apvts.getRawParameterValue ("morph")->load());
     spectralEngine.setDryWet  (apvts.getRawParameterValue ("drywet")->load());
     spectralEngine.setGrain   (apvts.getRawParameterValue ("grain")->load());

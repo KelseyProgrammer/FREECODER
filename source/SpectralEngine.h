@@ -42,6 +42,14 @@ public:
 
     static constexpr int getLatencySamples() noexcept { return kFFTSize; }
 
+    // Preset-load smoothing: call requestSnapSmoothers() from the message thread after
+    // replaceState(); the audio thread will call snapSmoothers() on the next block,
+    // jumping all continuous smoothers to the new values without a ramp.
+    void requestSnapSmoothers() noexcept { snapSmoothersOnNextBlock.store (true, std::memory_order_release); }
+    bool consumeSnapSmoothersPending() noexcept { return snapSmoothersOnNextBlock.exchange (false); }
+    void snapSmoothers (float morph, float grain, float formant,
+                        float scatter, float drywet, float pitch) noexcept;
+
     const juce::AudioBuffer<float>& getDonorBuffer() const noexcept { return donorBuffer; }
     int  getDonorLength() const noexcept { return donorLengthAtomic.load (std::memory_order_relaxed); }
     bool isRecording()    const noexcept { return donorRecording.load (std::memory_order_relaxed); }
@@ -187,6 +195,7 @@ private:
     std::vector<float> liveEnvelope;     // kNumBins
     std::vector<float> donorMag;         // kNumBins
     std::vector<float> donorEnvelope;    // kNumBins
+    std::vector<float> blendedMag;       // kNumBins — SIMD lerp result, then formant-modified
     mutable std::vector<float> envelopePrefix;   // kNumBins + 1  (reused by computeEnvelope)
 
     // Spectrum visualiser — audio thread writes, UI thread reads
@@ -215,6 +224,7 @@ private:
     std::atomic<int>  donorLengthAtomic { 0 }; // cross-thread safe read
     int  recordLimitSamples = kMaxDonorSamples;
     std::atomic<bool> autoEngagePending { false };
+    std::atomic<bool> snapSmoothersOnNextBlock { false };
     int  donorReadPos   = 0;
     std::atomic<bool> donorRecording { false };
     bool hasDonor       = false;

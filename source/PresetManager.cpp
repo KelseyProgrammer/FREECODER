@@ -115,6 +115,7 @@ void PresetManager::applyFactory (int i)
     addParam ("adsrRelease",  p.adsrRelease);
 
     apvts.replaceState (state);
+    engine.requestSnapSmoothers();   // prevent ramp artefacts on next audio block
     // Donor buffer intentionally preserved — user keeps their recording
 }
 
@@ -138,7 +139,10 @@ void PresetManager::applyUserFile (const juce::File& f)
 
     if (auto xml = juce::XmlDocument::parse (xmlStr))
         if (xml->hasTagName (apvts.state.getType()))
+        {
             apvts.replaceState (juce::ValueTree::fromXml (*xml));
+            engine.requestSnapSmoothers();
+        }
 
     // Donor buffer (optional — old presets without donor load cleanly)
     if (stream.isExhausted()) return;

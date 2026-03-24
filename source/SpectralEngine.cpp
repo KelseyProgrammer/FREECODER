@@ -11,6 +11,7 @@ SpectralEngine::SpectralEngine()
     liveEnvelope.resize   (kNumBins, 0.0f);
     donorMag.resize       (kNumBins, 0.0f);
     donorEnvelope.resize  (kNumBins, 0.0f);
+    blendedMag.resize     (kNumBins, 0.0f);
     envelopePrefix.resize (kNumBins + 1, 0.0f);
     donorPhasePrev.resize  (kNumBins, 0.0f);
     donorTrueFreq.resize   (kNumBins, 0.0f);
@@ -130,6 +131,18 @@ void SpectralEngine::stopRecording()
         slot.length  = donorLength;
         slot.hasData = true;
     }
+}
+
+//==============================================================================
+void SpectralEngine::snapSmoothers (float morph_, float grain_, float formant_,
+                                     float scatter_, float drywet_, float pitch_) noexcept
+{
+    morphSmoothed.setCurrentAndTargetValue   (morph_);
+    grainSmoothed.setCurrentAndTargetValue   (grain_);
+    formantSmoothed.setCurrentAndTargetValue (formant_);
+    scatterSmoothed.setCurrentAndTargetValue (scatter_);
+    dryWetSmoothed.setCurrentAndTargetValue  (drywet_);
+    pitchSmoothed.setCurrentAndTargetValue   (pitch_);
 }
 
 //==============================================================================
@@ -539,26 +552,38 @@ void SpectralEngine::processFFTFrame (int chIdx)
     if (hasDonor && fm > 0.0f)
         computeEnvelope (inputMag.data(), liveEnvelope.data(), kNumBins, 50);
 
-    // Morph blend + formant transfer → reconstruct complex spectrum
+    // ── Pass 1: SIMD magnitude lerp ────────────────────────────────────────────
     const float m = morph;
-    for (int k = 0; k < kNumBins; ++k)
+    if (hasDonor)
     {
-        // Spectral magnitude morph
-        float blended = hasDonor ? inputMag[k] * (1.0f - m) + donorMag[k] * m
-                                 : inputMag[k];
+        // blendedMag = inputMag * (1-m) + donorMag * m
+        juce::FloatVectorOperations::copy            (blendedMag.data(), inputMag.data(), kNumBins);
+        juce::FloatVectorOperations::multiply        (blendedMag.data(), 1.0f - m,        kNumBins);
+        juce::FloatVectorOperations::addWithMultiply (blendedMag.data(), donorMag.data(), m, kNumBins);
+    }
+    else
+    {
+        juce::FloatVectorOperations::copy (blendedMag.data(), inputMag.data(), kNumBins);
+    }
 
-        // Formant envelope transfer: shape blended spectrum with donor's formants
-        if (hasDonor && fm > 0.0f)
+    // ── Pass 2: formant envelope transfer (no branch inside hot loop) ──────────
+    if (hasDonor && fm > 0.0f)
+    {
+        for (int k = 0; k < kNumBins; ++k)
         {
             const float liveEnv = std::max (liveEnvelope[k], 1e-6f);
             const float ratio   = juce::jlimit (0.1f, 10.0f, donorEnvelope[k] / liveEnv);
-            blended *= juce::jmax (0.0f, 1.0f + fm * (ratio - 1.0f));
+            blendedMag[k] *= juce::jmax (0.0f, 1.0f + fm * (ratio - 1.0f));
         }
+    }
 
-        // When frozen: use self-sustaining donor phase for the spectral freeze effect
-        const float phase = (donorFrozen && hasDonor) ? donorPhaseAccum[k] : inputPhase[k];
-        fftScratch[2 * k]     = blended * std::cos (phase);
-        fftScratch[2 * k + 1] = blended * std::sin (phase);
+    // ── Pass 3: polar-to-cartesian reconstruction ──────────────────────────────
+    const bool frozen = donorFrozen && hasDonor;
+    for (int k = 0; k < kNumBins; ++k)
+    {
+        const float phase         = frozen ? donorPhaseAccum[k] : inputPhase[k];
+        fftScratch[2 * k]         = blendedMag[k] * std::cos (phase);
+        fftScratch[2 * k + 1]     = blendedMag[k] * std::sin (phase);
     }
 
     // Mirror conjugate symmetry for real IFFT output
@@ -572,13 +597,13 @@ void SpectralEngine::processFFTFrame (int chIdx)
     fft.performRealOnlyInverseTransform (fftScratch.data());
     const float scale = 1.0f / (2.0f * (float) kFFTSize);
 
-    for (int i = 0; i < kFFTSize; ++i)
-        cs.outputAccum[i] += fftScratch[i] * scale;
+    // SIMD accumulate: outputAccum += fftScratch * scale
+    juce::FloatVectorOperations::addWithMultiply (cs.outputAccum.data(), fftScratch.data(), scale, kFFTSize);
 
     // Deliver kHopSize ready samples, shift accumulator
     std::copy (cs.outputAccum.begin(), cs.outputAccum.begin() + kHopSize, cs.outputQueue.begin());
     std::copy (cs.outputAccum.begin() + kHopSize, cs.outputAccum.end(), cs.outputAccum.begin());
-    std::fill (cs.outputAccum.end() - kHopSize, cs.outputAccum.end(), 0.0f);
+    juce::FloatVectorOperations::clear (cs.outputAccum.data() + kFFTSize - kHopSize, kHopSize);
 
     cs.outputQueuePos = 0;
 }
