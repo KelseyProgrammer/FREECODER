@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FREECODER — User Manual</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      padding: 40px 20px 28px;
+      text-align: center;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .logo {
+      font-size: 2.8rem;
+      font-weight: bold;
+      letter-spacing: 0.3em;
+      color: #39ff6a;
+      text-shadow: 0 0 20px #39ff6a88, 0 0 60px #39ff6a44;
+    }
+
+    .logo a { color: inherit; text-decoration: none; }
+
+    .tagline {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      color: #555;
+      text-transform: uppercase;
+    }
+
+    nav {
+      margin-top: 20px;
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      color: #39ff6a;
+      text-decoration: none;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    nav a:hover { opacity: 1; }
+
+    main {
+      max-width: 780px;
+      width: 100%;
+      padding: 60px 24px 80px;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: #0e0e0e;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
+      padding: 24px 28px;
+      margin-bottom: 60px;
+    }
+
+    .toc-title {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      color: #39ff6a;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .toc ol {
+      padding-left: 1.2em;
+      color: #666;
+      font-size: 0.82rem;
+      line-height: 2.0;
+    }
+
+    .toc a {
+      color: #888;
+      text-decoration: none;
+    }
+    .toc a:hover { color: #39ff6a; }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 64px;
+    }
+
+    .section-title {
+      font-size: 0.68rem;
+      letter-spacing: 0.25em;
+      color: #39ff6a;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      border-left: 2px solid #39ff6a;
+      padding-left: 10px;
+    }
+
+    h3 {
+      font-size: 0.82rem;
+      letter-spacing: 0.15em;
+      color: #ccc;
+      text-transform: uppercase;
+      margin: 28px 0 10px;
+    }
+
+    p {
+      font-size: 0.88rem;
+      color: #888;
+      line-height: 1.85;
+      margin-bottom: 14px;
+    }
+
+    p strong { color: #ccc; }
+    p em { color: #39ff6a; font-style: normal; }
+
+    ul, ol {
+      font-size: 0.88rem;
+      color: #888;
+      line-height: 1.85;
+      padding-left: 1.4em;
+      margin-bottom: 14px;
+    }
+
+    li { margin-bottom: 4px; }
+    li strong { color: #ccc; }
+
+    /* ── Parameter table ── */
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-bottom: 20px;
+    }
+
+    .param-table th {
+      text-align: left;
+      padding: 8px 0;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: #39ff6a;
+      text-transform: uppercase;
+      border-bottom: 1px solid #222;
+    }
+
+    .param-table td {
+      padding: 10px 0;
+      color: #777;
+      border-bottom: 1px solid #161616;
+      vertical-align: top;
+    }
+
+    .param-table td:first-child {
+      color: #ccc;
+      width: 120px;
+      padding-right: 16px;
+      white-space: nowrap;
+    }
+
+    .param-table td:nth-child(2) {
+      color: #555;
+      width: 120px;
+      padding-right: 16px;
+      font-size: 0.78rem;
+    }
+
+    /* ── Step boxes ── */
+    .steps {
+      counter-reset: steps;
+      list-style: none;
+      padding: 0;
+    }
+
+    .steps li {
+      counter-increment: steps;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+
+    .steps li::before {
+      content: counter(steps);
+      min-width: 24px;
+      height: 24px;
+      background: #39ff6a;
+      color: #000;
+      font-weight: bold;
+      font-size: 0.72rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ── Callout boxes ── */
+    .callout {
+      padding: 14px 18px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      margin-bottom: 18px;
+    }
+
+    .callout-tip {
+      background: #0a180a;
+      border: 1px solid #1a3a1a;
+      color: #5a9a5a;
+    }
+
+    .callout-warn {
+      background: #1a1200;
+      border: 1px solid #3a2a00;
+      color: #aa8800;
+    }
+
+    .callout-tip strong, .callout-warn strong { color: inherit; opacity: 0.85; }
+
+    /* ── Button/knob chips ── */
+    .ctrl {
+      display: inline-block;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+      padding: 1px 7px;
+      font-size: 0.78rem;
+      color: #39ff6a;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    /* ── Preset table ── */
+    .preset-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.80rem;
+      margin-bottom: 20px;
+    }
+
+    .preset-table th {
+      text-align: left;
+      padding: 8px 0;
+      font-size: 0.63rem;
+      letter-spacing: 0.12em;
+      color: #39ff6a;
+      text-transform: uppercase;
+      border-bottom: 1px solid #222;
+    }
+
+    .preset-table td {
+      padding: 9px 0;
+      color: #777;
+      border-bottom: 1px solid #161616;
+      vertical-align: top;
+    }
+
+    .preset-table td:first-child {
+      color: #ccc;
+      width: 150px;
+      padding-right: 16px;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.64rem;
+      padding: 1px 6px;
+      border-radius: 2px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tag-freeze  { background: #0d1f1d; color: #44eecc; border: 1px solid #1a4a44; }
+    .tag-phrase  { background: #0a180a; color: #39ff6a; border: 1px solid #1a3a1a; }
+    .tag-grain   { background: #1a100a; color: #ffaa44; border: 1px solid #3a2a1a; }
+    .tag-midi    { background: #100a1a; color: #bb88ff; border: 1px solid #2a1a3a; }
+    .tag-pitch   { background: #1a0a0a; color: #ff6666; border: 1px solid #3a1a1a; }
+
+    footer {
+      width: 100%;
+      padding: 28px 20px;
+      text-align: center;
+      border-top: 1px solid #1a1a1a;
+      font-size: 0.72rem;
+      color: #333;
+      letter-spacing: 0.1em;
+    }
+
+    footer a { color: #444; text-decoration: none; }
+    footer a:hover { color: #39ff6a; }
+
+    @media (max-width: 520px) {
+      .logo { font-size: 1.9rem; }
+      .param-table td:nth-child(2) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><a href="index.html">FREECODER</a></div>
+  <div class="tagline">User Manual — v0.2.2</div>
+  <nav>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#controls">Controls</a>
+    <a href="#workflow">Workflows</a>
+    <a href="#midi">MIDI Mode</a>
+    <a href="#presets">Presets</a>
+    <a href="#tips">Tips</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#quickstart">Quick Start</a></li>
+      <li><a href="#concept">How It Works</a></li>
+      <li><a href="#controls">Controls Reference</a>
+        <ol>
+          <li><a href="#footswitches">Footswitches (REC / FREEZE)</a></li>
+          <li><a href="#sliders">Strip Sliders (MORPH / DRY·WET)</a></li>
+          <li><a href="#knobs">Pad Knobs (GRAIN / SCATTER / FORMANT / PITCH)</a></li>
+          <li><a href="#phrase-controls">Phrase Controls (PHRASE / REVERSE)</a></li>
+          <li><a href="#rec-options">Record Options (LENGTH / AUTO)</a></li>
+          <li><a href="#donor-slots">Donor Slots (A / B / C)</a></li>
+          <li><a href="#adsr">ADSR Envelope</a></li>
+        </ol>
+      </li>
+      <li><a href="#display">Display Panel</a></li>
+      <li><a href="#workflow">Effect Mode Workflows</a></li>
+      <li><a href="#midi">MIDI Instrument Mode</a></li>
+      <li><a href="#presets">Presets</a></li>
+      <li><a href="#importexport">Import / Export</a></li>
+      <li><a href="#tips">Tips &amp; Techniques</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. Quick Start -->
+  <div class="section" id="quickstart">
+    <div class="section-title">1 · Quick Start</div>
+    <p>FREECODER needs a recording — called the <strong>donor</strong> — before it does anything interesting. Here's the fastest path from silence to sound:</p>
+    <ol class="steps">
+      <li>Route audio into your DAW track running FREECODER (vocals, guitar, synth pad — anything).</li>
+      <li>Press <span class="ctrl">REC</span>. The LED lights green. Sing, play, or let audio pass through for up to 5 seconds.</li>
+      <li>Press <span class="ctrl">REC</span> again to stop (or let it auto-stop at the record length).</li>
+      <li>Press <span class="ctrl">FREEZE</span>. Your live input is now being morphed with the donor's spectral character.</li>
+      <li>Sweep <span class="ctrl">MORPH</span> to blend between phrase playback (left) and full spectral freeze (right).</li>
+      <li>Adjust <span class="ctrl">DRY·WET</span> to taste.</li>
+    </ol>
+    <div class="callout callout-tip">
+      <strong>Tip:</strong> Enable <span class="ctrl">AUTO</span> before recording — FREEZE will engage automatically the moment recording stops.
+    </div>
+  </div>
+
+  <!-- 2. How It Works -->
+  <div class="section" id="concept">
+    <div class="section-title">2 · How It Works</div>
+    <p>
+      FREECODER splits its processing into two independent paths that you blend with the <strong>MORPH</strong> knob:
+    </p>
+    <h3>Spectral Freeze path (MORPH → right)</h3>
+    <p>
+      Every 512 samples, a 2048-point FFT analyses both the live input and the donor recording.
+      The magnitude spectrum of the donor is blended onto the live input's magnitudes, while
+      phase vocoder processing keeps the frozen donor sounding stable rather than metallic.
+      The result is your live signal continuously cross-pollinated with the donor's timbral character.
+    </p>
+    <h3>Phrase Loop path (MORPH → left)</h3>
+    <p>
+      The donor recording is played back as a looping audio phrase, pitch-shifted and/or
+      scattered according to <span class="ctrl">PITCH</span> and <span class="ctrl">SCATTER</span>.
+      With <span class="ctrl">FORMANT</span> turned up, the phrase's spectral envelope is reshaped
+      through the donor's own vowel character — useful for keeping tonal consistency
+      when pitch-shifting aggressively.
+    </p>
+    <h3>Granular layer</h3>
+    <p>
+      Independently of freeze and phrase, up to 16 short Hann-windowed grains scatter
+      across the donor buffer according to <span class="ctrl">GRAIN</span> and
+      <span class="ctrl">SCATTER</span>. This layer adds cloud-like texture or choppy
+      glitch effects depending on your settings.
+    </p>
+  </div>
+
+  <!-- 3. Controls -->
+  <div class="section" id="controls">
+    <div class="section-title">3 · Controls Reference</div>
+
+    <h3 id="footswitches">Footswitches</h3>
+    <table class="param-table">
+      <tr><th>Button</th><th>Type</th><th>Description</th></tr>
+      <tr>
+        <td>REC</td>
+        <td>Toggle</td>
+        <td>Edge-triggered. First press starts recording audio into the active donor slot (up to the set record length). Second press (or auto-stop) ends recording. The LED is green while recording.</td>
+      </tr>
+      <tr>
+        <td>FREEZE</td>
+        <td>Toggle</td>
+        <td>Engages spectral freeze and phrase playback. When lit, the donor is active and processing begins. Disengaging smoothly fades the effect out. In effect mode with ADSR on, the envelope shapes the engage transition.</td>
+      </tr>
+    </table>
+
+    <h3 id="sliders">Strip Sliders</h3>
+    <table class="param-table">
+      <tr><th>Control</th><th>Range</th><th>Description</th></tr>
+      <tr>
+        <td>MORPH</td>
+        <td>0 – 1</td>
+        <td>Blends between the two processing paths. <em>Full left</em> = phrase loop dominates. <em>Full right</em> = spectral freeze dominates. The centre position mixes both evenly.</td>
+      </tr>
+      <tr>
+        <td>DRY·WET</td>
+        <td>0 – 1</td>
+        <td>Final blend between the unprocessed (dry) signal and the FREECODER output (wet). At 0 the plugin is transparent; at 1 it is fully wet. For subtle blending, set to 0.3–0.5.</td>
+      </tr>
+    </table>
+
+    <h3 id="knobs">Pad Knobs</h3>
+    <table class="param-table">
+      <tr><th>Knob</th><th>Range</th><th>Description</th></tr>
+      <tr>
+        <td>GRAIN</td>
+        <td>0 – 1</td>
+        <td>Amount of granular texture mixed in. At 0 the grain engine is silent. At 1, dense overlapping grains continuously scrub the donor buffer. Works independently of FREEZE and PHRASE.</td>
+      </tr>
+      <tr>
+        <td>SCATTER</td>
+        <td>0 – 1</td>
+        <td>Controls position randomisation for both grains and the phrase playhead. At 0, grains are evenly spaced and the phrase loops cleanly. Higher values produce increasingly chaotic, stutter-like playback.</td>
+      </tr>
+      <tr>
+        <td>FORMANT</td>
+        <td>0 – 1</td>
+        <td>
+          In <em>spectral freeze mode</em>: how strongly the donor's spectral envelope (vowel/formant shape) is transferred onto the live input. At 0.5, the donor's character is subtly imposed; at 1.0, the formant imprint is complete.<br><br>
+          In <em>phrase mode</em>: routes phrase playback through an additional spectral shaping pass that applies the donor's own formant envelope. This preserves tonal identity when pitch-shifting.
+        </td>
+      </tr>
+      <tr>
+        <td>PITCH</td>
+        <td>−12 – +12 st</td>
+        <td>Pitch-shifts the phrase playback in semitones. Does not affect the spectral freeze path. Fractional values (e.g. −0.3 st) are valid for subtle detune effects.</td>
+      </tr>
+    </table>
+
+    <h3 id="phrase-controls">Phrase Controls</h3>
+    <table class="param-table">
+      <tr><th>Button</th><th>Description</th></tr>
+      <tr>
+        <td>PHRASE</td>
+        <td>Independently engages phrase loop playback. PHRASE and FREEZE can be on simultaneously — useful for layering the looping phrase under a frozen spectral bed.</td>
+      </tr>
+      <tr>
+        <td>REVERSE</td>
+        <td>Reverses the phrase loop playback direction. Takes effect immediately without clicking. Also reverses scatter jumps so the stutter texture stays coherent.</td>
+      </tr>
+    </table>
+
+    <h3 id="rec-options">Record Options</h3>
+    <table class="param-table">
+      <tr><th>Control</th><th>Range</th><th>Description</th></tr>
+      <tr>
+        <td>LENGTH</td>
+        <td>1, 2, 3, 5 s</td>
+        <td>Maximum record duration, snapped to four values. Shorter lengths give tighter, more rhythmic loops; longer lengths capture full phrases or chords.</td>
+      </tr>
+      <tr>
+        <td>AUTO</td>
+        <td>Toggle</td>
+        <td>When on, FREEZE automatically engages the moment recording stops. Eliminates the gap between capture and playback — useful when performing live.</td>
+      </tr>
+    </table>
+
+    <h3 id="donor-slots">Donor Slots (A / B / C)</h3>
+    <p>
+      FREECODER maintains three independent donor slots. Each slot stores its own
+      full recording. Clicking <span class="ctrl">A</span>, <span class="ctrl">B</span>,
+      or <span class="ctrl">C</span> switches the active slot instantly, applying that
+      slot's audio to all processing.
+    </p>
+    <ul>
+      <li>Record into the active slot by pressing <span class="ctrl">REC</span>.</li>
+      <li>Switch slots mid-performance to swap between three completely different timbres.</li>
+      <li>Slots are preserved when you save a user preset (all three are stored).</li>
+      <li>Use <span class="ctrl">IMP</span> to load an audio file into the active slot.</li>
+    </ul>
+
+    <h3 id="adsr">ADSR Envelope</h3>
+    <p>
+      The ADSR controls are shared between effect mode and MIDI instrument mode.
+    </p>
+    <table class="param-table">
+      <tr><th>Control</th><th>Range</th><th>Description</th></tr>
+      <tr><td>ATTACK</td><td>0.001 – 5 s</td><td>Time to reach full amplitude from silence.</td></tr>
+      <tr><td>DECAY</td><td>0.001 – 5 s</td><td>Time to fall from peak to the sustain level.</td></tr>
+      <tr><td>SUSTAIN</td><td>0 – 1</td><td>Amplitude held while a note / FREEZE is held on.</td></tr>
+      <tr><td>RELEASE</td><td>0.001 – 10 s</td><td>Fade-out time after note off or FREEZE disengagement.</td></tr>
+    </table>
+    <p>
+      In <strong>effect mode</strong>, the ADSR is only active when
+      <span class="ctrl">ADSR</span> is toggled on. It shapes the FREEZE engage/disengage
+      transition — useful for slow swells or gated effects.
+    </p>
+    <p>
+      In <strong>MIDI mode</strong>, the ADSR is always active and applied per-voice.
+    </p>
+  </div>
+
+  <!-- 4. Display Panel -->
+  <div class="section" id="display">
+    <div class="section-title">4 · Display Panel</div>
+
+    <h3>Spectrum view (upper area)</h3>
+    <p>
+      A dual-layer FFT spectrum refreshes at ~15 Hz.
+      The <em>green filled area</em> shows the donor's magnitude spectrum.
+      The <em>dim white outline</em> shows the live input spectrum.
+      Watching both overlap as you adjust MORPH and FORMANT gives immediate visual
+      feedback of the cross-synthesis happening in real time. The vertical scale
+      runs from 0 dBFS (top) to −60 dBFS (bottom), with horizontal grid lines
+      at −12, −24, −36, and −48 dBFS.
+    </p>
+
+    <h3>Waveform view (lower area)</h3>
+    <p>
+      The donor buffer's waveform is displayed as a peak-normalised overview.
+      When <span class="ctrl">PHRASE</span> is engaged, a vertical white line
+      shows the current playhead position moving through the recording in real time.
+      The playhead respects REVERSE direction and SCATTER jumps.
+    </p>
+
+    <h3>Tuner</h3>
+    <p>
+      FREECODER continuously estimates the fundamental pitch of the live input (channel 1)
+      using FFT peak detection. The detected note name, MIDI note number, and cents offset
+      (±50¢ relative to equal temperament) are shown in the header area.
+      This is useful for tuning your instrument before recording, or for
+      setting the PITCH knob accurately.
+    </p>
+  </div>
+
+  <!-- 5. Workflows -->
+  <div class="section" id="workflow">
+    <div class="section-title">5 · Effect Mode Workflows</div>
+
+    <h3>Classic spectral freeze</h3>
+    <ol class="steps">
+      <li>Set MORPH to full right, SCATTER to 0, GRAIN to 0.</li>
+      <li>Record a held chord or sustained note. Hit <span class="ctrl">FREEZE</span>.</li>
+      <li>Your live playing is now spectrally coloured by the frozen chord. Adjust FORMANT to taste.</li>
+    </ol>
+
+    <h3>Phrase loop with formant shaping</h3>
+    <ol class="steps">
+      <li>Set MORPH to the left half. Record a vocal phrase or melodic riff.</li>
+      <li>Press <span class="ctrl">PHRASE</span> to start the loop.</li>
+      <li>Turn up FORMANT to route the loop through the donor's own spectral envelope — the tonal character stays consistent as you pitch-shift with PITCH.</li>
+      <li>Add SCATTER for rhythmic stutter. Add REVERSE for backwards playback.</li>
+    </ol>
+
+    <h3>Granular cloud</h3>
+    <ol class="steps">
+      <li>Record any textural source — room tone, a breath, a pad.</li>
+      <li>Turn GRAIN to 0.7–1.0 and SCATTER to 0.4–0.8.</li>
+      <li>Leave FREEZE off. The grain engine runs independently, filling the output with fragmented texture from the donor.</li>
+      <li>DRY·WET at 0.4–0.6 blends the cloud under your live signal.</li>
+    </ol>
+
+    <h3>Stacked freeze + phrase</h3>
+    <p>
+      Both <span class="ctrl">FREEZE</span> and <span class="ctrl">PHRASE</span> can be
+      active simultaneously. Use this to layer a looping phrase underneath a spectral bed —
+      the phrase adds rhythmic movement while the freeze provides sustained harmonic texture.
+      Set MORPH to the middle for an even blend.
+    </p>
+
+    <div class="callout callout-tip">
+      <strong>Tip:</strong> Use three donor slots to prepare three different donors (e.g. a pad, a rhythm, a melodic phrase) and switch between them live with A / B / C for instant timbre changes mid-performance.
+    </div>
+  </div>
+
+  <!-- 6. MIDI Mode -->
+  <div class="section" id="midi">
+    <div class="section-title">6 · MIDI Instrument Mode</div>
+    <p>
+      Toggle the <span class="ctrl">EFFECT / MIDI</span> button to switch FREECODER into
+      a polyphonic instrument. In MIDI mode, the donor recording becomes a playable
+      chromatic instrument mapped across your keyboard.
+    </p>
+
+    <h3>Setup</h3>
+    <ol class="steps">
+      <li>Record a donor sound — a single note, a chord, a vowel, any timbre.</li>
+      <li>Press <span class="ctrl">EFFECT</span> to switch to MIDI mode (button text changes).</li>
+      <li>Set the <strong>Root Note</strong> slider to match the pitch of what you recorded (e.g. C4 = 60). The tuner readout helps identify this.</li>
+      <li>Play notes from your MIDI keyboard. Each note pitch-shifts the donor playback relative to the root note.</li>
+    </ol>
+
+    <h3>Polyphony &amp; Voices</h3>
+    <p>
+      Up to <strong>8 simultaneous voices</strong> are supported. Each voice has its own
+      independent phrase playhead, pitch rate, and ADSR envelope. When all 8 voices are
+      occupied and a new note arrives, the oldest active voice is stolen.
+    </p>
+
+    <h3>Latch mode</h3>
+    <p>
+      Enable <span class="ctrl">LATCH</span> to hold notes without keeping keys held.
+      Each new note-on adds to the held cluster; pressing a held note again releases it.
+      Useful for building up sustained chords or for live looping workflows without a
+      sustain pedal.
+    </p>
+
+    <h3>ADSR in MIDI mode</h3>
+    <p>
+      The ADSR envelope is always active in MIDI mode. Each voice gets its own envelope
+      instance triggered by note-on and released by note-off. Short attack + zero sustain
+      produces a pluck; long attack + high sustain produces a pad swell.
+    </p>
+
+    <div class="callout callout-tip">
+      <strong>Tip:</strong> Record a vowel sound (e.g. a held "aah") and use it as a MIDI instrument with FORMANT at 0.7. Melody notes will carry the vowel's spectral character up and down the scale — similar to a formant-locked vocoder but fully polyphonic.
+    </div>
+
+    <div class="callout callout-warn">
+      <strong>Note:</strong> MIDI mode uses phrase playback internally. The FREEZE button and spectral freeze path are inactive in MIDI mode. Return to EFFECT mode to use spectral freeze.
+    </div>
+  </div>
+
+  <!-- 7. Presets -->
+  <div class="section" id="presets">
+    <div class="section-title">7 · Presets</div>
+
+    <p>Use <span class="ctrl">&lt;</span> and <span class="ctrl">&gt;</span> to cycle presets,
+    and <span class="ctrl">SAVE</span> to save your current state as a named user preset.
+    Factory presets only restore parameters — your donor recordings are preserved.
+    User presets store everything including all three donor slots.</p>
+
+    <h3>Factory presets</h3>
+    <table class="preset-table">
+      <tr><th>Name</th><th>Mode</th><th>Description</th></tr>
+      <tr>
+        <td>Init</td>
+        <td><span class="tag tag-freeze">Freeze</span></td>
+        <td>Neutral starting point. MORPH centre, all effects moderate.</td>
+      </tr>
+      <tr>
+        <td>Deep Freeze</td>
+        <td><span class="tag tag-freeze">Freeze</span></td>
+        <td>Full spectral freeze, no scatter, high formant. Dense, sustaining freeze effect.</td>
+      </tr>
+      <tr>
+        <td>Shimmer Freeze</td>
+        <td><span class="tag tag-freeze">Freeze</span></td>
+        <td>Full freeze with gentle scatter for a slight shimmer texture.</td>
+      </tr>
+      <tr>
+        <td>Glitch Freeze</td>
+        <td><span class="tag tag-freeze">Freeze</span></td>
+        <td>Full scatter and grain over a hard freeze. Broken, digital artifacts.</td>
+      </tr>
+      <tr>
+        <td>Phrase Loop</td>
+        <td><span class="tag tag-phrase">Phrase</span></td>
+        <td>Basic phrase loop playback with PHRASE pre-engaged. Morph left, minimal processing.</td>
+      </tr>
+      <tr>
+        <td>Phrase+Formant</td>
+        <td><span class="tag tag-phrase">Phrase</span></td>
+        <td>Phrase loop with high FORMANT. Good for pitch-shifting vocal phrases while preserving vowel character.</td>
+      </tr>
+      <tr>
+        <td>Phrase Scatter</td>
+        <td><span class="tag tag-phrase">Phrase</span></td>
+        <td>Looping phrase with heavy scatter — produces rhythmic stutter from any source.</td>
+      </tr>
+      <tr>
+        <td>Grain Cloud</td>
+        <td><span class="tag tag-grain">Grain</span></td>
+        <td>Dense granular texture with high scatter. No freeze or phrase — pure grain engine.</td>
+      </tr>
+      <tr>
+        <td>Octave Shimmer</td>
+        <td><span class="tag tag-pitch">Pitch</span></td>
+        <td>PITCH at +12 st with moderate freeze. Adds a shimmering octave-up layer.</td>
+      </tr>
+      <tr>
+        <td>Pitch Down</td>
+        <td><span class="tag tag-pitch">Pitch</span></td>
+        <td>PITCH at −12 st. Drop the recorded phrase a full octave.</td>
+      </tr>
+      <tr>
+        <td>MIDI Pad</td>
+        <td><span class="tag tag-midi">MIDI</span></td>
+        <td>Slow attack, moderate release, high sustain. Switches to MIDI mode automatically. Best with a held chord or pad donor.</td>
+      </tr>
+      <tr>
+        <td>MIDI Pluck</td>
+        <td><span class="tag tag-midi">MIDI</span></td>
+        <td>Near-instant attack, zero sustain, short release. Switches to MIDI mode. Produces a pluck or pizzicato character from any donor.</td>
+      </tr>
+    </table>
+
+    <h3>Saving user presets</h3>
+    <p>
+      Press <span class="ctrl">SAVE</span> to open a save dialog. The preset file
+      (<code>.freecoder</code>) stores the complete APVTS state plus all three donor
+      slot recordings. Store presets in the default folder
+      (<code>~/Documents/Ament Audio/FREECODER/Presets/</code>) and they will appear
+      automatically in the preset browser on the next load.
+    </p>
+  </div>
+
+  <!-- 8. Import / Export -->
+  <div class="section" id="importexport">
+    <div class="section-title">8 · Import / Export</div>
+
+    <h3>Export donor to WAV</h3>
+    <p>
+      Press <span class="ctrl">EXP</span> to export the active donor slot's audio
+      as a standard WAV file. Useful for sharing a captured timbre, using it in
+      another tool, or archiving a performance recording.
+    </p>
+
+    <h3>Import audio file as donor</h3>
+    <p>
+      Press <span class="ctrl">IMP</span> to load any audio file from disk
+      (WAV, AIFF, FLAC, etc.) directly into the active donor slot.
+      The file is resampled to the current session sample rate if needed.
+      This lets you use pre-made samples, field recordings, or exported
+      donors from other projects without having to re-record them live.
+    </p>
+
+    <div class="callout callout-tip">
+      <strong>Tip:</strong> Import a drone or texture from your sample library as donor slot B, keep your live recording in slot A, and switch between them mid-session with a single button press.
+    </div>
+  </div>
+
+  <!-- 9. Tips -->
+  <div class="section" id="tips">
+    <div class="section-title">9 · Tips &amp; Techniques</div>
+
+    <h3>Getting the best donor recording</h3>
+    <ul>
+      <li><strong>Sustained sounds work best</strong> for spectral freeze — held chords, bowed strings, pad synths, vocals on a vowel.</li>
+      <li><strong>Rhythmic content</strong> works better in phrase and grain modes — short loops, drum hits, stabs.</li>
+      <li>Record at a healthy level. Quiet donors produce noisy freeze output.</li>
+      <li>The tuner helps you match the root note before switching to MIDI mode.</li>
+    </ul>
+
+    <h3>Layering with your dry signal</h3>
+    <ul>
+      <li>At DRY·WET below 0.5, the spectral effect sits underneath your unprocessed signal.</li>
+      <li>Full wet (1.0) works well for totally transformed, stand-alone textures.</li>
+      <li>For subtle harmonic thickening, try FREEZE at 0.3 wet with MORPH centre.</li>
+    </ul>
+
+    <h3>Controlling scatter without crackling</h3>
+    <p>
+      SCATTER jumps the phrase playhead instantaneously, but a short crossfade
+      (512 samples) is applied automatically to prevent clicks. Very high scatter
+      at high DRY·WET levels can still sound abrupt — this is intentional for
+      glitch aesthetics. For smoother stutter, keep scatter below 0.6 and
+      DRY·WET around 0.7.
+    </p>
+
+    <h3>MIDI + grain layering</h3>
+    <p>
+      In MIDI mode, the GRAIN knob still runs the grain engine. Turning GRAIN up
+      in MIDI mode adds a cloud of granular texture beneath the pitched voices —
+      effectively layering a grain pad with your melodic MIDI playing.
+    </p>
+
+    <h3>Latency compensation</h3>
+    <p>
+      FREECODER reports its processing latency (~46 ms at 44.1 kHz, 2048 samples)
+      to the host. Modern DAWs compensate for this automatically on tracked
+      instruments. If you experience sync drift, check that plugin delay
+      compensation (PDC) is enabled in your DAW.
+    </p>
+
+    <div class="callout callout-warn">
+      <strong>Mono input:</strong> FREECODER expects stereo in + stereo out. If your DAW sends mono, duplicate the input to both channels or use a utility plugin to make it stereo before the FREECODER insert.
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <a href="index.html">FREECODER</a> &nbsp;·&nbsp;
+  <a href="https://github.com/KelseyProgrammer/FREECODER">GitHub</a>
+  &nbsp;·&nbsp;
+  Ament Audio &nbsp;·&nbsp; v0.2.2
+</footer>
+
+</body>
+</html>
