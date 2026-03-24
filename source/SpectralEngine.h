@@ -232,6 +232,8 @@ private:
     bool  phraseEngaged   = false;   // phrase loop independently engaged
     bool  reverse         = false;   // play phrase in reverse
     float phraseReadPosF  = 0.0f;    // fractional playhead for pitch-shifted phrase loop
+    float scatterOldPosF  = 0.0f;    // playhead position before last scatter jump / loop wrap
+    int   scatterFadeCount = 0;      // samples remaining in crossfade (0 = inactive)
 
     // Grain state
     std::array<Grain, kMaxGrains> grains;

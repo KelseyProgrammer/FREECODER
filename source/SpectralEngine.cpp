@@ -77,8 +77,10 @@ void SpectralEngine::prepare (double sampleRate, int /*blockSize*/)
     for (auto& v : midiVoices) { v.reset(); v.adsr.setSampleRate (sampleRate); }
     effectAdsr_.setSampleRate (sampleRate);
     effectAdsr_.reset();
-    effectAdsrOn = false;
-    midiMode = false;
+    effectAdsrOn     = false;
+    midiMode         = false;
+    scatterOldPosF   = 0.0f;
+    scatterFadeCount = 0;
 }
 
 //==============================================================================
@@ -230,10 +232,13 @@ void SpectralEngine::setPhraseEngage (bool v) noexcept
     phraseEngageGain.setTargetValue (v ? 1.0f : 0.0f);
     if (v)
     {
-        phraseReadPosF = (float) donorReadPos;  // start loop from current analysis position
+        phraseReadPosF   = (float) donorReadPos;  // start loop from current analysis position
+        scatterFadeCount = 0;                     // clear any leftover crossfade
     }
     else
     {
+        scatterFadeCount = 0;
+
         // Clear phrase formant OLA state so stale audio doesn't bleed into the next engage
         for (auto& cs : ch)
         {
@@ -655,7 +660,10 @@ void SpectralEngine::spawnGrain()
         const int offset = scatterRange > 0
                                ? (int) ((rng.nextFloat() * 2.0f - 1.0f) * (float) scatterRange)
                                : 0;
-        gr.readPos = (donorReadPos + offset + donorLength) % donorLength;
+        // When PHRASE is engaged, scatter grains around the audible playhead position;
+        // otherwise use the spectral analysis cursor (donorReadPos).
+        const int center = phraseEngaged ? (int) phraseReadPosF : donorReadPos;
+        gr.readPos = (center + offset + donorLength) % donorLength;
         return;
     }
     // No free grain slot — drop
@@ -798,7 +806,10 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                 const int scatterRange = (int) (scatter * (float) donorLength * 0.25f);
                 if (scatterRange > 0)
                 {
-                    phraseReadPosF += (rng.nextFloat() * 2.0f - 1.0f) * (float) scatterRange;
+                    // Save old position and start a kHopSize-sample crossfade to prevent clicks
+                    scatterOldPosF   = phraseReadPosF;
+                    scatterFadeCount = kHopSize;
+                    phraseReadPosF  += (rng.nextFloat() * 2.0f - 1.0f) * (float) scatterRange;
                     if (phraseReadPosF < 0.0f)                  phraseReadPosF += (float) donorLength;
                     if (phraseReadPosF >= (float) donorLength)   phraseReadPosF -= (float) donorLength;
                 }
@@ -875,16 +886,25 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             const float freezeGain = engageGain.getNextValue() * adsrMult;
             const float phraseGain = phraseEngageGain.getNextValue();
             const float masterEnv  = std::max (freezeGain, phraseGain);
-            const float rate       = std::pow (2.0f, pitch / 12.0f);
-            const int   pos0       = (int) phraseReadPosF % donorLength;
-            const int   pos1       = (pos0 + 1) % donorLength;
-            const float frac       = phraseReadPosF - std::floor (phraseReadPosF);
+            const float rate   = std::pow (2.0f, pitch / 12.0f);
+            const int   pos0   = (int) phraseReadPosF % donorLength;
+            const int   pos1   = (pos0 + 1) % donorLength;
+            const float frac   = phraseReadPosF - std::floor (phraseReadPosF);
+
+            // Crossfade weight: blends old playhead (pre-jump/wrap) into current position
+            // to eliminate the click from scatter jumps and loop-wrap discontinuities.
+            const float xfadeT  = scatterFadeCount > 0
+                                   ? (float) scatterFadeCount / (float) kHopSize : 0.0f;
+            const int   oldPos0 = scatterFadeCount > 0 ? (int) scatterOldPosF % donorLength : 0;
+            const int   oldPos1 = scatterFadeCount > 0 ? (oldPos0 + 1) % donorLength : 0;
+            const float oldFrac = scatterFadeCount > 0
+                                   ? scatterOldPosF - std::floor (scatterOldPosF) : 0.0f;
 
             // Morph blends freeze <-> phrase only when BOTH are active.
             // If only one is engaged, its weight is 1.0 regardless of morph position.
             const bool hasFreezeAudio = freezeGain > 0.001f;
             const bool hasPhraseAudio = phraseGain > 0.001f;
-            const float freezeWeight  = (hasFreezeAudio && hasPhraseAudio) ? morph         : (hasFreezeAudio ? 1.0f : 0.0f);
+            const float freezeWeight  = (hasFreezeAudio && hasPhraseAudio) ? morph          : (hasFreezeAudio ? 1.0f : 0.0f);
             const float phraseWeight  = (hasFreezeAudio && hasPhraseAudio) ? (1.0f - morph) : (hasPhraseAudio ? 1.0f : 0.0f);
 
             for (int c = 0; c < numCh; ++c)
@@ -894,8 +914,16 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                                               ? ch[c].outputQueue[ch[c].outputQueuePos++]
                                               : 0.0f;
 
-                const float rawPhrase = donorBuffer.getSample (c, pos0) * (1.0f - frac)
-                                      + donorBuffer.getSample (c, pos1) * frac;
+                float rawPhrase = donorBuffer.getSample (c, pos0) * (1.0f - frac)
+                                + donorBuffer.getSample (c, pos1) * frac;
+
+                // Blend old playhead during crossfade (scatter jump or loop wrap)
+                if (xfadeT > 0.0f)
+                {
+                    const float oldSample = donorBuffer.getSample (c, oldPos0) * (1.0f - oldFrac)
+                                          + donorBuffer.getSample (c, oldPos1) * oldFrac;
+                    rawPhrase = oldSample * xfadeT + rawPhrase * (1.0f - xfadeT);
+                }
 
                 // Feed raw phrase into formant ring buffer for processing at the next hop
                 if (formant > 0.0f && phraseEngaged)
@@ -915,9 +943,27 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
                 buffer.setSample (c, i, dry * (1.0f - dw * masterEnv) + wet * dw);
             }
 
+            // Advance phrase playhead; trigger crossfade on loop wrap
+            const float posBeforeAdvance = phraseReadPosF;
             phraseReadPosF += reverse ? -rate : rate;
-            if (phraseReadPosF < 0.0f)                 phraseReadPosF += (float) donorLength;
-            if (phraseReadPosF >= (float) donorLength)  phraseReadPosF -= (float) donorLength;
+            bool loopWrapped = false;
+            if (phraseReadPosF < 0.0f)                { phraseReadPosF += (float) donorLength; loopWrapped = true; }
+            if (phraseReadPosF >= (float) donorLength) { phraseReadPosF -= (float) donorLength; loopWrapped = true; }
+
+            if (loopWrapped && scatterFadeCount == 0)
+            {
+                scatterOldPosF   = posBeforeAdvance;
+                scatterFadeCount = kHopSize;
+            }
+
+            // Advance old playhead in parallel and count down the crossfade
+            if (scatterFadeCount > 0)
+            {
+                scatterOldPosF += reverse ? -rate : rate;
+                if (scatterOldPosF < 0.0f)                 scatterOldPosF += (float) donorLength;
+                if (scatterOldPosF >= (float) donorLength)  scatterOldPosF -= (float) donorLength;
+                --scatterFadeCount;
+            }
         }
     }
 
