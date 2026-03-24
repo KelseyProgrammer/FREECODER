@@ -40,7 +40,15 @@ pamplejuce/
 │   ├── PluginProcessor.h/.cpp   — APVTS params, processBlock, state I/O
 │   ├── PluginEditor.h/.cpp      — UI: FreecoderLookAndFeel, all controls
 │   ├── SpectralEngine.h/.cpp    — all DSP: FFT OLA, granular, phase vocoder, MIDI voices
+│   ├── FootswitchButton.h       — self-painting juce::Button subclass (REC + FREEZE)
 │   └── PresetManager.h/.cpp     — factory + user preset save/load
+├── assets/
+│   └── images/
+│       ├── freecoder_logo.svg   — wordmark SVG (compiled into BinaryData)
+│       └── pamplejuce.png       — template asset (unused)
+├── docs/
+│   ├── index.html               — GitHub Pages landing page
+│   └── manual.html              — full user manual
 ├── tests/
 │   ├── Catch2Main.cpp
 │   ├── PluginBasics.cpp
@@ -89,6 +97,7 @@ pamplejuce/
 - Donor buffer: ~5 sec max (`kMaxDonorSamples = 220500`)
 - Donor slots: 3 (A/B/C) (`kNumDonorSlots`)
 - Visualiser bins: 256 (`kVisBins`)
+- Waveform overview points: 512 (`kWavePoints`)
 
 **Processing chain per block:**
 1. Capture path: if recording, write input → donorBuffer (edge-triggered, auto-stops at recLength)
@@ -108,7 +117,8 @@ pamplejuce/
 - State cleared in `setPhraseEngage(false)` and the deferred OLA flush
 
 **Phrase scatter (PHRASE mode, scatter > 0):**
-- At each hop boundary while `phraseEngaged`, jitters `phraseReadPosF` by `±scatter × donorLength × 0.25` (same range formula as grain scatter)
+- At each hop boundary while `phraseEngaged`, jitters `phraseReadPosF` by `±scatter × donorLength × 0.25`
+- Scatter jump and loop-wrap both trigger a 512-sample crossfade via `scatterOldPosF` / `scatterFadeCount` to eliminate clicks
 
 **Donor slots (A/B/C):**
 - `setActiveSlot(n)` switches the working donorBuffer to slot n
@@ -118,6 +128,7 @@ pamplejuce/
 **Thread safety:**
 - Visualiser: `CriticalSection visLock` — audio thread calls `tryEnter`, skips if UI is reading
 - Tuner: `CriticalSection tunerLock` — same pattern
+- Waveform: `CriticalSection waveformLock` — same pattern; playhead baked in at read time from `waveformPlayheadAtomic`
 - Donor slot requests: `std::atomic<int> requestedSlot`, applied at block boundary
 - Auto-engage: `std::atomic<bool> autoEngagePending`, consumed once by processBlock
 
@@ -132,7 +143,8 @@ pamplejuce/
 - `rootNoteSlider` — LinearHorizontal, MIDI utility row
 
 **Buttons:**
-- `recButton` (REC), `engageButton` (ENGAGE), `reverseButton` (REVERSE), `phraseButton` (PHRASE)
+- `recButton` (REC), `engageButton` (FREEZE) — **FootswitchButton** instances (self-painting, no LookAndFeel override)
+- `reverseButton` (REVERSE), `phraseButton` (PHRASE) — TextButton
 - `modeButton` (EFFECT ↔ MIDI toggle)
 - `autoEngageButton` (AUTO), `effectAdsrButton` (ADSR), `latchButton` (LATCH)
 - `slotButtonA/B/C` (A / B / C donor slots)
@@ -143,9 +155,11 @@ pamplejuce/
 **ADSR sliders** (adsrAttackSlider / adsrDecaySlider / adsrSustainSlider / adsrReleaseSlider):
 - Visible and active in both MIDI mode and effect mode (when effectAdsr is on)
 
-**Display area:** Dual-layer FFT spectrum (donor = green filled, live input = dim white outline),
-15 Hz refresh via timer. dB scale -60 to 0 dBFS, 256 display bins. Horizontal dB grid lines at
--12/-24/-36/-48 dBFS for level reference.
+**Display area:** Split into two regions:
+- Upper ~60%: dual-layer FFT spectrum (donor = green filled, live input = dim white outline), 15 Hz refresh, dB scale −60 to 0 dBFS, grid lines at −12/−24/−36/−48 dBFS
+- Lower ~40%: waveform overview (peak-normalised donor buffer, white playhead line when PHRASE engaged)
+
+**Logo:** SVG loaded from `BinaryData::freecoder_logo_svg` in constructor via `juce::Drawable::createFromSVG()`; drawn proportionally in `paint()` with text fallback.
 
 **Window:** Resizable — `setResizeLimits(420, 480, 900, 1000)`. All layout in `resized()` is fully
 proportional to `W` and `H`. All paint() positions reference component bounds or compute from
@@ -158,8 +172,12 @@ proportional to `W` and `H`. All paint() positions reference component bounds or
 
 ## Preset System (PresetManager)
 
-- Factory presets: param-only (donor buffer preserved as-is)
-- User presets: full binary (APVTS XML + donor buffer), saved as `*.freecoder`
+- Factory presets: 12 presets, param-only (donor buffer preserved as-is)
+  - Covers: Init, Deep Freeze, Shimmer Freeze, Glitch Freeze, Phrase Loop, Phrase+Formant,
+    Phrase Scatter, Grain Cloud, Octave Shimmer, Pitch Down, MIDI Pad, MIDI Pluck
+  - `FactoryPreset` struct includes: morph, grain, formant, scatter, drywet, pitch,
+    phraseEngage, midiMode, reverse, adsrAttack, adsrDecay, adsrSustain, adsrRelease
+- User presets: full binary (APVTS XML + all 3 donor slot buffers), saved as `*.freecoder`
 - Location: `~/Documents/Ament Audio/FREECODER/Presets/`
 - Navigation: `nextPreset()`, `previousPreset()`, `loadPresetAtIndex()`
 - Save: `promptSavePreset()` — async native dialog, safe from message thread
@@ -190,18 +208,31 @@ Feature branch pushes trigger no CI — develop freely.
 
 **Release flow:**
 1. Merge feature branch → `main` (CI validates all platforms)
-2. `git tag v0.2.0 && git push --tags` → CI builds + creates GitHub Release automatically
+2. `git tag v0.2.2 && git push --tags` → CI builds + creates GitHub Release automatically
 
 **Do not use `Builds/`** (Xcode generator, 10× larger). Use `BuildsNinja/` exclusively.
 
 ---
 
-## What Remains (v0.2 → v0.3)
+## What Remains
 
-- **TextButton footswitches** — replace with proper custom painted toggle components (currently FreecoderLookAndFeel wraps TextButton; LED + footswitch look is painted but the underlying widget is still a TextButton)
-- **SIMD** — optimise magnitude blend loop in `SpectralEngine::processFFTFrame`
-- **Logo SVG** — wordmark is currently text-rendered in `paint()`; an SVG asset would be higher quality at any scale
-- **Waveform overview** — donor buffer waveform display in the centre panel would improve visibility of captured content; requires a thread-safe snapshot mechanism
+### High priority (v0.3)
+- **SIMD** — optimise magnitude blend loop in `SpectralEngine::processFFTFrame` (1025-bin inner loop, called every hop)
+- **Parameter smoothing on preset load** — `apvts.replaceState()` causes a hard jump in all smoothed values; add a post-load ramp or use `SmoothedValue::setCurrentAndTargetValue` to prevent audio glitches when switching presets mid-playback
+- **Test coverage** — `SpectralEngineTests.cpp` covers basics; scatter crossfade, waveform snapshot, and MIDI voice steal have no tests yet
+- **AU validation** — run `auval -v aufx Frcd Amnt` and confirm clean pass before any release
+
+### Medium priority
+- **Code signing / notarization** — plugin is currently unsigned; users must manually allow via `xattr -cr` or right-click → Open. Requires Apple Developer account + CI secrets for automated signing
+- **Windows testing** — CI builds Windows VST3 but it has not been manually tested in a DAW
+- **Mono input handling** — `isBusesLayoutSupported` rejects mono in; a utility note in the manual covers this, but accepting mono + upmixing internally would be more DAW-friendly
+- **Resizable window persistence** — window size is not saved to plugin state; reopening the editor resets to 540×600
+
+### Lower priority / polish
+- **FootswitchButton for PHRASE + REVERSE** — currently still TextButton; would complete the visual consistency of all four footswitches
+- **Slot button indicator** — slot buttons A/B/C don't visually indicate which slot has a recording; adding a dot or dim glow when `donorSlotHasData(n)` would improve usability
+- **Label layout at small sizes** — footswitch label text can overlap at minimum window width (420px); clamp or hide sub-labels below a threshold
+- **Preset name display** — current name shown in header; no indication of unsaved changes (dirty state)
 
 ---
 
@@ -212,3 +243,4 @@ Feature branch pushes trigger no CI — develop freely.
 - Sample rate changes handled in `prepareToPlay` — all SmoothedValues re-initialised
 - `COPY_PLUGIN_AFTER_BUILD TRUE` in CMakeLists — plugin auto-installs to `~/Library/Audio/Plug-Ins` on Mac after every build
 - Em dashes replaced with `-` in test strings for Windows CTest compatibility
+- clangd reports false-positive `juce` undeclared errors — ignore; actual cmake/ninja builds are always clean
