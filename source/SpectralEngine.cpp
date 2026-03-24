@@ -566,15 +566,23 @@ void SpectralEngine::processFFTFrame (int chIdx)
         juce::FloatVectorOperations::copy (blendedMag.data(), inputMag.data(), kNumBins);
     }
 
-    // ── Pass 2: formant envelope transfer (no branch inside hot loop) ──────────
+    // ── Pass 2: formant envelope transfer (energy-normalised) ─────────────────
+    // Renormalise after shaping so formant only changes spectral shape, not volume.
     if (hasDonor && fm > 0.0f)
     {
+        float energyBefore = 0.0f, energyAfter = 0.0f;
         for (int k = 0; k < kNumBins; ++k)
         {
+            energyBefore += blendedMag[k] * blendedMag[k];
             const float liveEnv = std::max (liveEnvelope[k], 1e-6f);
             const float ratio   = juce::jlimit (0.1f, 10.0f, donorEnvelope[k] / liveEnv);
             blendedMag[k] *= juce::jmax (0.0f, 1.0f + fm * (ratio - 1.0f));
+            energyAfter += blendedMag[k] * blendedMag[k];
         }
+        if (energyAfter > 1e-12f)
+            juce::FloatVectorOperations::multiply (blendedMag.data(),
+                                                   std::sqrt (energyBefore / energyAfter),
+                                                   kNumBins);
     }
 
     // ── Pass 3: polar-to-cartesian reconstruction ──────────────────────────────
@@ -637,15 +645,30 @@ void SpectralEngine::processPhraseFftFrame (int chIdx)
     // Compute phrase spectral envelope (reuses liveEnvelope scratch)
     computeEnvelope (inputMag.data(), liveEnvelope.data(), kNumBins, 50);
 
-    // Shape phrase spectrum toward donor's formant envelope
+    // Shape phrase spectrum toward donor's formant envelope (energy-normalised)
+    float energyBefore = 0.0f, energyAfter = 0.0f;
+    for (int k = 0; k < kNumBins; ++k)
+        energyBefore += inputMag[k] * inputMag[k];
+
     for (int k = 0; k < kNumBins; ++k)
     {
         const float phraseEnv = std::max (liveEnvelope[k], 1e-6f);
         const float ratio     = juce::jlimit (0.1f, 10.0f, donorEnvelope[k] / phraseEnv);
         const float shaped    = inputMag[k] * juce::jmax (0.0f, 1.0f + formant * (ratio - 1.0f));
+        energyAfter += shaped * shaped;
 
         fftScratch[2 * k]     = shaped * std::cos (inputPhase[k]);
         fftScratch[2 * k + 1] = shaped * std::sin (inputPhase[k]);
+    }
+
+    if (energyAfter > 1e-12f)
+    {
+        const float gain = std::sqrt (energyBefore / energyAfter);
+        for (int k = 0; k < kNumBins; ++k)
+        {
+            fftScratch[2 * k]     *= gain;
+            fftScratch[2 * k + 1] *= gain;
+        }
     }
 
     // Mirror conjugate symmetry for real IFFT
