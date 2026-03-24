@@ -1,55 +1,85 @@
-![PAMPLEJUCE](assets/images/pamplejuce.png)
-[![](https://github.com/sudara/pamplejuce/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/sudara/pamplejuce/actions)
+# FREECODER
+**Spectral Morphing Workstation** — VST3 · AU · CLAP
 
-Pamplejuce is a ~~template~~ lifestyle for creating and building JUCE plugins in 2026.
+by [Ament Audio](https://chrisament.gumroad.com/l/kvbani)
 
-Out-of-the-box, it:
+---
 
-1. Runs C++23
-2. Uses JUCE 8.x as a git submodule (tracking develop).
-3. Uses CPM for dependency management.
-3. Relies on CMake 3.25 and higher for cross-platform building.
-4. Has [Catch2](https://github.com/catchorg/Catch2) v3.7.1 for the test framework and runner.
-5. Includes a `Tests` target and a `Benchmarks` target with examples to get started quickly.
-6. Has [Melatonin Inspector](https://github.com/sudara/melatonin_inspector) installed as a JUCE module to help relieve headaches when building plugin UI.
+## What It Does
 
-It also has integration with GitHub Actions, specifically:
+Record any sound — a chord, a breath, a riff. That recording becomes a **spectral donor**: a living audio fingerprint. Your live input is then continuously cross-pollinated with it through spectral morphing, formant transfer, granular texture, and phase vocoder processing.
 
-1. Building and testing cross-platform (linux, macOS, Windows) binaries
-2. Running tests and benchmarks in CI
-3. Running [pluginval](http://github.com/tracktion/pluginval) 1.x against the binaries for plugin validation
-4. Config for [installing Intel IPP](https://www.intel.com/content/www/us/en/developer/tools/oneapi/ipp.html)
-5. [Code signing and notarization on macOS](https://melatonin.dev/blog/how-to-code-sign-and-notarize-macos-audio-plugins-in-ci/)
-6. [Windows code signing via Azure Trusted Signing](https://melatonin.dev/blog/code-signing-on-windows-with-azure-trusted-signing/)
+The result is something between a vocoder, a granular reverb, and an audio prism — uniquely shaped by whatever you chose to record. Play it as an effect or a **polyphonic MIDI instrument**.
 
-It also contains:
+---
 
-1. A `.gitignore` for all platforms.
-2. A `.clang-format` file for keeping code tidy.
-3. A `VERSION` file that will propagate through JUCE and your app.
-4. A ton of useful comments and options around the CMake config.
+## Features
 
-## How does this all work at a high level?
+- **Spectral Freeze** — FFT-based cross-synthesis blends your live signal with the donor's spectral fingerprint in real time
+- **Granular Texture** — Scatter-randomised grain engine scrubs the donor buffer independently of freeze
+- **Formant Transfer** — Spectral envelope extraction maps the donor's vowel character onto your input
+- **Phrase Loop** — Loop and pitch-shift the recorded phrase with fractional-interpolated resampling
+- **MIDI Instrument Mode** — 8-voice polyphony, ADSR envelope, root note mapping
+- **3 Donor Slots** — Hot-swap between three independent recordings live
+- **WAV Import / Export** — Bring in any audio file as a donor, or export your capture
+- **Live Spectrum + Tuner** — Dual-layer FFT visualizer with built-in pitch tuner
 
-Check out the [official Pamplejuce documentation](https://melatonin.dev/manuals/pamplejuce/how-does-this-all-work/).
+---
 
-[![Arc - 2024-10-01 51@2x](https://github.com/user-attachments/assets/01d19d2d-fbac-481f-8cec-e9325b2abe57)](https://melatonin.dev/manuals/pamplejuce/how-does-this-all-work/)
+## Download
 
-## Setting up for YOUR project
+**[Buy — $29](https://chrisament.gumroad.com/l/kvbani)** · 7-day honor system trial available via [GitHub Releases](https://github.com/KelseyProgrammer/FREECODER/releases/latest)
 
-This is a template repo!
+**[Product Page](https://kelseyProgrammer.github.io/FREECODER/freecoder.html)** · **[User Manual](https://kelseyProgrammer.github.io/FREECODER/manual.html)**
 
-That means you can click "[Use this template](https://github.com/sudara/pamplejuce/generate)" here or at the top of the page to get your own copy (not fork) of the repo. Then you can make it private or keep it public, up to you.
+---
 
-Then check out the [documentation](https://melatonin.dev/manuals/pamplejuce/setting-your-project-up/) so you know what to tweak. 
+## Install
 
-> [!NOTE]
-> Tests will immediately run and fail (go red) until you [set up code signing](https://melatonin.dev/manuals/pamplejuce/getting-started/code-signing/).
+| Format | Path |
+|--------|------|
+| VST3 | `~/Library/Audio/Plug-Ins/VST3/` |
+| AU | `~/Library/Audio/Plug-Ins/Components/` |
+| CLAP | `~/Library/Audio/Plug-Ins/CLAP/` |
 
-## Having Issues?
+> **Unsigned build:** right-click the plugin → Open → Allow, or run:
+> ```bash
+> xattr -cr ~/Library/Audio/Plug-Ins/VST3/FREECODER.vst3
+> ```
 
-Thanks to everyone who has contributed to the repository. 
+---
 
-This repository covers a _lot_ of ground. JUCE itself has a lot of surface area. It's a group effort to maintain the garden and keep things nice!
+## Specs
 
-If something isn't just working out of the box — *it's probably not just you* — others are running into the problem, too, I promise. Check out [the official docs](https://melatonin.dev/manuals/pamplejuce), then please do [open an issue](https://github.com/sudara/pamplejuce/issues/new)!
+| | |
+|---|---|
+| Formats | VST3 · AU · CLAP (macOS) · VST3 (Windows/Linux) |
+| Plugin type | Effect + MIDI Instrument |
+| I/O | Stereo in → Stereo out |
+| Latency | ~46 ms (2048-sample FFT @ 44.1 kHz), reported to host |
+| FFT | 2048-pt, 4× overlap-add, Hann window |
+| Polyphony | 8 voices (MIDI mode) |
+| Donor length | Up to 5 seconds · 3 slots |
+| Requires | macOS 10.13+ · 64-bit DAW |
+| Version | 0.2.10 |
+
+---
+
+## Building from Source
+
+```bash
+git submodule update --init --recursive
+cmake -B BuildsNinja -G Ninja
+cmake --build BuildsNinja --target FREECODER_Standalone
+```
+
+Run tests:
+```bash
+cmake --build BuildsNinja --target FREECODER_Tests && ./BuildsNinja/Tests/FREECODER_Tests
+```
+
+---
+
+## License
+
+© 2026 Ament Audio. All rights reserved.
