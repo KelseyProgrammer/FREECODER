@@ -140,9 +140,11 @@ bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 
     const auto in = layouts.getMainInputChannelSet();
     // Accept no input (MIDI instrument mode, or standalone with no input device).
-    // Accept matching input (effect mode — stereo in / stereo out or mono / mono).
-    // Reject mismatched non-empty layouts (e.g. mono in + stereo out).
-    if (!in.isDisabled() && in != out)
+    // Accept matching layouts (stereo/stereo or mono/mono).
+    // Accept mono in + stereo out — upmixed in processBlock.
+    // Reject everything else (e.g. 5.1 input).
+    if (!in.isDisabled() && in != out &&
+        !(in == juce::AudioChannelSet::mono() && out == juce::AudioChannelSet::stereo()))
         return false;
 
     return true;
@@ -162,6 +164,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+
+    // Upmix mono in -> stereo out: duplicate ch 0 so both channels get equal processing
+    if (totalNumInputChannels == 1 && totalNumOutputChannels == 2)
+        buffer.copyFrom (1, 0, buffer, 0, 0, buffer.getNumSamples());
 
     // Parameters that always apply regardless of mode
     // Rec length: snap raw value to nearest of {1,2,3,5} seconds
@@ -294,6 +300,10 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destData)
     stream.writeInt (xmlStr.getNumBytesAsUTF8());
     stream.write (xmlStr.toUTF8(), (size_t) xmlStr.getNumBytesAsUTF8());
 
+    // Editor window size
+    stream.writeInt (savedEditorWidth);
+    stream.writeInt (savedEditorHeight);
+
     // Active slot index + all 3 donor slots
     stream.writeInt (spectralEngine.getActiveSlot());
     for (int s = 0; s < SpectralEngine::kNumDonorSlots; ++s)
@@ -342,6 +352,10 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
             p->setValueNotifyingHost (0.0f);
         prevRecTrigger = false;
     }
+
+    // Editor window size (optional — old presets without this fall through gracefully)
+    if (!stream.isExhausted()) savedEditorWidth  = stream.readInt();
+    if (!stream.isExhausted()) savedEditorHeight = stream.readInt();
 
     // Donor slots (optional — old single-slot presets fall through gracefully)
     if (stream.isExhausted()) return;

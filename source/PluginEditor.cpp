@@ -309,7 +309,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     startTimerHz (15);
     setResizable (true, true);
     setResizeLimits (420, 480, 900, 1000);
-    setSize (540, 600);
+    setSize (processorRef.savedEditorWidth, processorRef.savedEditorHeight);
 }
 
 PluginEditor::~PluginEditor()
@@ -354,10 +354,11 @@ void PluginEditor::timerCallback()
         const bool hasData   = processorRef.donorSlotHasData (i);
         slotButtons[i]->setColour (juce::TextButton::textColourOffId,
                                    isActive  ? juce::Colour (0xff44ff44) :
-                                   hasData   ? juce::Colour (0xff2a7a2a) :
+                                   hasData   ? juce::Colour (0xff00cc00) :
                                                juce::Colour (0xff2a2a2a));
         slotButtons[i]->setColour (juce::TextButton::buttonColourId,
                                    isActive  ? juce::Colour (0xff0d2a0d) :
+                                   hasData   ? juce::Colour (0xff081408) :
                                                juce::Colour (0xff0a0a0a));
     }
 }
@@ -893,6 +894,7 @@ void PluginEditor::resized()
 {
     const int W = getWidth();
     const int H = getHeight();
+    processorRef.setEditorSize (W, H);
 
     const int headerH  = juce::roundToInt (H * 0.1133f);   // ~68 at 600
     const int presetH  = juce::roundToInt (H * 0.060f);    // ~36 at 600

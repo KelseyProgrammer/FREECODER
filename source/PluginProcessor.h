@@ -76,6 +76,11 @@ public:
     // Import any audio file from disk as the donor for the active slot
     void importDonorFromFile();
 
+    // Editor window size persistence (message thread only)
+    int savedEditorWidth  = 540;
+    int savedEditorHeight = 600;
+    void setEditorSize (int w, int h) { savedEditorWidth = w; savedEditorHeight = h; }
+
     // Diagnostics — read by editor, written by audio thread
     std::atomic<int> diagInputChannels { 0 };
     std::atomic<int> diagBlockSize     { 0 };
