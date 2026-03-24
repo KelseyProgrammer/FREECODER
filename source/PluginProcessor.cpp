@@ -259,10 +259,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         spectralEngine.setPitch        (apvts.getRawParameterValue ("pitch")->load());
     }
 
-    // Auto-engage: fires once when recording stops — runs AFTER param state so it can override.
+    // Auto-engage: fires once when recording stops — always on, no user toggle needed.
     if (spectralEngine.consumeAutoEngagePending())
     {
-        const bool autoEngage = apvts.getRawParameterValue ("autoEngage")->load() > 0.5f;
+        const bool autoEngage = true;
         if (autoEngage && !midiMode)
         {
             spectralEngine.setEngage (true);
@@ -463,10 +463,9 @@ void PluginProcessor::importDonorFromFile()
             // Called from message thread — best-effort (not RT-safe, but stable when idle)
             spectralEngine.importDonorData (buf, numSamples);
 
-            // Kick auto-engage if the param is on and we're in effect mode
-            const bool autoEngage = apvts.getRawParameterValue ("autoEngage")->load() > 0.5f;
-            const bool isMidi     = apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
-            if (autoEngage && !isMidi)
+            // Auto-engage on import — always on.
+            const bool isMidi = apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
+            if (!isMidi)
             {
                 spectralEngine.setEngage (true);
                 juce::MessageManager::callAsync ([this]

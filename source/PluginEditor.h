@@ -86,10 +86,6 @@ private:
     juce::Slider recLengthSlider { juce::Slider::LinearHorizontal, juce::Slider::NoTextBox };
     SA recLengthAttachment { processorRef.apvts, "recLength", recLengthSlider };
 
-    // Auto-engage toggle
-    juce::TextButton autoEngageButton { "AUTO" };
-    BA autoEngageAttachment { processorRef.apvts, "autoEngage", autoEngageButton };
-
     // Effect ADSR toggle (enables ADSR shaping of FREEZE engage in effect mode)
     juce::TextButton effectAdsrButton { "ADSR" };
     BA effectAdsrAttachment { processorRef.apvts, "effectAdsr", effectAdsrButton };

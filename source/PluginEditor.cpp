@@ -174,6 +174,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     for (auto* s : { &morphSlider, &drywetSlider })
     {
         s->setLookAndFeel (laf.get());
+        s->setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
         s->onValueChange = [this] { repaint(); };
         addAndMakeVisible (s);
     }
@@ -181,6 +182,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     for (auto* s : { &grainSlider, &scatterSlider, &formantSlider, &pitchSlider })
     {
         s->setLookAndFeel (laf.get());
+        s->setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
         addAndMakeVisible (s);
     }
     pitchSlider.setRange (-12.0, 12.0, 0.1);  // semitones, overrides attachment default display
@@ -260,6 +262,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     // Rec length: stepped 1/2/3/5s, drawn as labelled ticks in paint()
     recLengthSlider.setRange (1.0, 5.0, 1.0);
+    recLengthSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     recLengthSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a2a0a));
     recLengthSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff44ff44));
     recLengthSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080808));
@@ -269,6 +272,7 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     for (auto* s : { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider })
     {
         s->setLookAndFeel (laf.get());
+        s->setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
         s->setVisible (false);
         addAndMakeVisible (s);
     }
@@ -412,6 +416,7 @@ void PluginEditor::paint (juce::Graphics& g)
     const int headerH  = juce::roundToInt (H * 0.1133f);
     const int presetH  = juce::roundToInt (H * 0.060f);
     const int contentY = headerH + presetH;
+    const float fS = juce::jlimit (0.85f, 1.4f, (float) W / 540.0f);
 
     // ── Background (vertical gradient) ──────────────────────────────────────
     {
@@ -471,19 +476,19 @@ void PluginEditor::paint (juce::Graphics& g)
     else
     {
         g.setColour (juce::Colour (0xff44ff44).withAlpha (0.07f));
-        g.setFont (juce::FontOptions (30.0f).withStyle ("Bold"));
+        g.setFont (juce::FontOptions (30.0f * fS).withStyle ("Bold"));
         g.drawText ("FREECODER", 60, 6, 310, 36, juce::Justification::centredLeft);
         g.setColour (juce::Colours::white);
-        g.setFont (juce::FontOptions (26.0f).withStyle ("Bold"));
+        g.setFont (juce::FontOptions (26.0f * fS).withStyle ("Bold"));
         g.drawText ("FREECODER", 62, 8, 308, 32, juce::Justification::centredLeft);
         g.setColour (juce::Colour (0xff44ff44).withAlpha (0.85f));
-        g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
+        g.setFont (juce::FontOptions (9.0f * fS).withStyle ("Bold"));
         g.drawText ("SPECTRAL  MORPHING  WORKSTATION", 62, 41, 350, 13, juce::Justification::centredLeft);
     }
 
     // Branding (top-right)
     g.setColour (juce::Colour (0xff333333));
-    g.setFont (juce::FontOptions (7.5f));
+    g.setFont (juce::FontOptions (7.5f * fS));
     g.drawText ("AMENT  |  AUDIO", W - 112, 52, 104, 12, juce::Justification::centredRight);
 
     // ── Preset strip ────────────────────────────────────────────────────────
@@ -493,50 +498,49 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawLine (0.0f, (float) contentY, (float) W, (float) contentY, 1.0f);
 
     g.setColour (juce::Colour (0xff44ff44));
-    g.setFont (juce::FontOptions (12.0f).withStyle ("Bold"));
+    g.setFont (juce::FontOptions (12.0f * fS).withStyle ("Bold"));
     const juce::String presetLabel = presetManager.getCurrentPresetName() + (isDirty ? " *" : "");
     g.drawText (presetLabel, 52, headerH + 5, W - 160, 26, juce::Justification::centred);
 
     // ── Slider section ──────────────────────────────────────────────────────
-    auto drawSliderLabels = [&] (int lx, int ly, const juce::String& name)
-    {
-        g.setColour (juce::Colour (0xffcccccc));
-        g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
-        g.drawText (name, lx, ly, 100, 14, juce::Justification::centredLeft);
-    };
+    const int mX = morphSlider.getX(),  mW = morphSlider.getWidth();
+    const int dX = drywetSlider.getX(), dW = drywetSlider.getWidth();
 
-    drawSliderLabels (20,      morphSlider.getY() - 18,   "MORPH");
-    drawSliderLabels (W - 120, drywetSlider.getY() - 18,  "DRY / WET");
+    // MORPH label row: "< PHRASE" left · "MORPH" centre · "SPECTRAL >" right — one line
+    const int labelRowY = morphSlider.getY() - 20;
+    g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
+    g.setColour (juce::Colour (0xff666666));
+    g.drawText ("< PHRASE",   mX, labelRowY, mW, 18, juce::Justification::centredLeft);
+    g.setColour (juce::Colour (0xffcccccc));
+    g.drawText ("MORPH",      mX, labelRowY, mW, 18, juce::Justification::centred);
+    g.setColour (juce::Colour (0xff666666));
+    g.drawText ("SPECTRAL >", mX, labelRowY, mW, 18, juce::Justification::centredRight);
 
-    // Value readouts
+    // DRY / WET label
+    g.setColour (juce::Colour (0xffcccccc));
+    g.drawText ("DRY / WET", dX, drywetSlider.getY() - 20, dW, 18, juce::Justification::centredRight);
+
+    // Value readouts — centred under each slider
     g.setColour (juce::Colour (0xff44ff44));
-    g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
-    g.drawText (juce::String (morphSlider.getValue(),  2), 20,      morphSlider.getBottom() + 3, 80, 12, juce::Justification::centredLeft);
-    g.drawText (juce::String (drywetSlider.getValue(), 2), W - 120, drywetSlider.getBottom() + 3, 80, 12, juce::Justification::centredRight);
-
-    // Morph endpoint labels: PHRASE (0) on left, SPECTRAL (1) on right
-    g.setColour (juce::Colour (0xff999999));
-    g.setFont (juce::FontOptions (9.0f));
-    g.drawText ("< PHRASE",   20,  morphSlider.getBottom() + 15, 90,  12, juce::Justification::centredLeft);
-    g.drawText ("SPECTRAL >", 20,  morphSlider.getBottom() + 15, 218, 12, juce::Justification::centredRight);
+    g.drawText (juce::String (morphSlider.getValue(),  2), mX, morphSlider.getBottom() + 4,  mW, 16, juce::Justification::centred);
+    g.drawText (juce::String (drywetSlider.getValue(), 2), dX, drywetSlider.getBottom() + 4, dW, 16, juce::Justification::centred);
 
     // ── Pad labels ──────────────────────────────────────────────────────────
     const int lpad1Y = grainSlider.getY()   + grainSlider.getHeight()   / 2 - 10;
     const int lpad2Y = scatterSlider.getY() + scatterSlider.getHeight() / 2 - 10;
     const int rpad1Y = formantSlider.getY() + formantSlider.getHeight() / 2 - 10;
 
-    // Left pad labels (to the left of the pads)
+    // Left pad labels — right-aligned to knob centre (much wider area than just the margin)
     g.setColour (juce::Colour (0xffcccccc));
-    g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
-    g.drawText ("GRAIN",   2, lpad1Y, grainSlider.getX() - 4, 20, juce::Justification::centredRight);
-    g.drawText ("SCATTER", 2, lpad2Y, scatterSlider.getX() - 4, 20, juce::Justification::centredRight);
+    g.setFont (juce::FontOptions (12.0f * fS).withStyle ("Bold"));
+    g.drawText ("GRAIN",   2, lpad1Y, grainSlider.getX() - 4,   22, juce::Justification::centredRight);
+    g.drawText ("SCATTER", 2, lpad2Y, scatterSlider.getX() - 4, 22, juce::Justification::centredRight);
 
-    // Right pad labels (to the right of the pads)
+    // Right pad labels — to the right of the knobs
     const int rpRight = formantSlider.getRight();
-    g.drawText ("FORMANT", rpRight + 4, rpad1Y, W - rpRight - 6, 20, juce::Justification::centredLeft);
-
     const int rpad2Y = pitchSlider.getY() + pitchSlider.getHeight() / 2 - 10;
-    g.drawText ("PITCH",   rpRight + 4, rpad2Y, W - rpRight - 6, 20, juce::Justification::centredLeft);
+    g.drawText ("FORMANT", rpRight + 4, rpad1Y, W - rpRight - 6, 22, juce::Justification::centredLeft);
+    g.drawText ("PITCH",   rpRight + 4, rpad2Y, W - rpRight - 6, 22, juce::Justification::centredLeft);
 
     // ── Centre display (sunken LCD panel look) ───────────────────────────────
     // Outer shadow bevel
@@ -558,7 +562,7 @@ void PluginEditor::paint (juce::Graphics& g)
 
     // "DONOR" label
     g.setColour (juce::Colour (0xff2a7a2a));
-    g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
+    g.setFont (juce::FontOptions (9.0f * fS).withStyle ("Bold"));
     g.drawText ("DONOR",
                 displayBounds.getX(), displayBounds.getY() + 6,
                 displayBounds.getWidth(), 14, juce::Justification::centred);
@@ -594,7 +598,7 @@ void PluginEditor::paint (juce::Graphics& g)
             const float gy   = botY - norm * bh;
             g.drawHorizontalLine (juce::roundToInt (gy), bx, bx + bw);
             g.setColour (juce::Colour (0xff223322));
-            g.setFont (juce::FontOptions (7.0f));
+            g.setFont (juce::FontOptions (7.0f * fS));
             g.drawText (juce::String ((int) db) + "dB", (int) bx + 2, (int) gy - 8, 32, 8, juce::Justification::centredLeft);
             g.setColour (juce::Colour (0xff1a2a1a));
         }
@@ -632,7 +636,7 @@ void PluginEditor::paint (juce::Graphics& g)
         {
             // No donor yet — workflow hint
             g.setColour (juce::Colour (0xff2a5a2a));
-            g.setFont (juce::FontOptions (11.0f).withStyle ("Bold"));
+            g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
             g.drawText ("TAP  REC  TO  CAPTURE  A  DONOR", specArea.toFloat(), juce::Justification::centred);
         }
 
@@ -641,7 +645,7 @@ void PluginEditor::paint (juce::Graphics& g)
         if (isRecording || donorFillLevel > 0.001f)
         {
             g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff44ff44));
-            g.setFont (juce::FontOptions (11.0f).withStyle ("Bold"));
+            g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
             g.drawText (juce::String ((int) (donorFillLevel * 100)) + "%",
                         specArea.getRight() - 36, specArea.getY(), 34, 14,
                         juce::Justification::centredRight);
@@ -727,26 +731,26 @@ void PluginEditor::paint (juce::Graphics& g)
 
     // REC label + sublabel
     g.setColour (juce::Colours::white);
-    g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+    g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
     g.drawText ("REC", recCx_p - 50, recBot + 4, 100, 18, juce::Justification::centred);
     if (showSubs)
     {
         g.setColour (juce::Colour (0xff888888));
-        g.setFont (juce::FontOptions (9.0f));
-        g.drawText ("CAPTURE DONOR", recCx_p - 55, recBot + 22, 110, 13, juce::Justification::centred);
+        g.setFont (juce::FontOptions (11.0f * fS));
+        g.drawText ("CAPTURE DONOR", recCx_p - juce::roundToInt (W * 0.10f), recBot + 24, juce::roundToInt (W * 0.20f), 18, juce::Justification::centred);
     }
 
     // REVERSE label + sublabel
     {
         const bool isReversed = processorRef.apvts.getRawParameterValue ("reverse")->load() > 0.5f;
         g.setColour (isReversed ? juce::Colour (0xff44ff44) : juce::Colours::white);
-        g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+        g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
         g.drawText ("REV", revCx_p - 50, revBot + 4, 100, 18, juce::Justification::centred);
         if (showSubs)
         {
             g.setColour (juce::Colour (0xff888888));
-            g.setFont (juce::FontOptions (9.0f));
-            g.drawText ("REVERSE LOOP", revCx_p - 55, revBot + 22, 110, 13, juce::Justification::centred);
+            g.setFont (juce::FontOptions (11.0f * fS));
+            g.drawText ("REVERSE LOOP", revCx_p - juce::roundToInt (W * 0.10f), revBot + 24, juce::roundToInt (W * 0.20f), 18, juce::Justification::centred);
         }
     }
 
@@ -755,13 +759,13 @@ void PluginEditor::paint (juce::Graphics& g)
         const bool isMidiForPh = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
         const bool isPhrased   = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
         g.setColour (isPhrased ? juce::Colour (0xff44ff44) : juce::Colours::white);
-        g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+        g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
         g.drawText ("PHRASE", phCx_p - 50, phBot + 4, 100, 18, juce::Justification::centred);
         if (showSubs)
         {
             g.setColour (juce::Colour (0xff888888));
-            g.setFont (juce::FontOptions (9.0f));
-            g.drawText (isMidiForPh ? "LATCH NOTES" : "PHRASE LOOP", phCx_p - 55, phBot + 22, 110, 13, juce::Justification::centred);
+            g.setFont (juce::FontOptions (11.0f * fS));
+            g.drawText (isMidiForPh ? "LATCH NOTES" : "PHRASE LOOP", phCx_p - juce::roundToInt (W * 0.10f), phBot + 24, juce::roundToInt (W * 0.20f), 18, juce::Justification::centred);
         }
     }
 
@@ -769,39 +773,34 @@ void PluginEditor::paint (juce::Graphics& g)
     {
         const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
         g.setColour (isEngaged ? juce::Colour (0xff44ff44) : juce::Colours::white);
-        g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
+        g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
         g.drawText ("FREEZE", engCx_p - 55, engBot + 4, 110, 18, juce::Justification::centred);
         if (showSubs)
         {
             g.setColour (juce::Colour (0xff888888));
-            g.setFont (juce::FontOptions (9.0f));
-            g.drawText ("SPECTRAL FREEZE", engCx_p - 60, engBot + 22, 120, 13, juce::Justification::centred);
+            g.setFont (juce::FontOptions (11.0f * fS));
+            g.drawText ("SPECTRAL FREEZE", engCx_p - juce::roundToInt (W * 0.11f), engBot + 24, juce::roundToInt (W * 0.22f), 18, juce::Justification::centred);
         }
     }
 
-    // Rec length labels: 1s / 2s / 3s / 5s ticks above slider
+    // Rec length labels: 1s / 2s / 3s / 5s below slider, current value highlighted
     {
         const int recCx = recCx_p;
         const int sliderX = recCx - 52;
         const int sliderW = 104;
-        const int labelY  = recLengthSlider.getY() - 13;
+        const int labelY  = recLengthSlider.getBottom() + 4;
         static const float stops[]  = { 0.0f, 0.25f, 0.5f, 1.0f };
+        static const float vals[]   = { 1.0f, 2.0f, 3.0f, 5.0f };
         static const char* labels[] = { "1s", "2s", "3s", "5s" };
-        g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
+        const float recSecs = (float) recLengthSlider.getValue();
+        g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
         for (int t = 0; t < 4; ++t)
         {
             const int tx = sliderX + (int) (stops[t] * sliderW);
-            g.setColour (juce::Colour (0xff777777));
-            g.fillRect (tx, recLengthSlider.getY() - 5, 1, 5);
-            g.setColour (juce::Colour (0xff999999));
-            g.drawText (labels[t], tx - 10, labelY, 20, 13, juce::Justification::centred);
+            const bool isCurrent = (std::abs (vals[t] - recSecs) < 0.1f);
+            g.setColour (isCurrent ? juce::Colour (0xff44ff44) : juce::Colour (0xff666666));
+            g.drawText (labels[t], tx - 12, labelY, 24, 16, juce::Justification::centred);
         }
-
-        const float recSecs = (float) recLengthSlider.getValue();
-        const juce::String recLabel = juce::String ((int) recSecs) + "s";
-        g.setColour (juce::Colour (0xff44ff44));
-        g.setFont (juce::FontOptions (8.5f).withStyle ("Bold"));
-        g.drawText (recLabel, recCx - 20, recLengthSlider.getBottom() + 2, 40, 12, juce::Justification::centred);
 
         // LATCH label — only in MIDI mode
         const bool isLatched = processorRef.apvts.getRawParameterValue ("latch")->load() > 0.5f;
@@ -809,7 +808,7 @@ void PluginEditor::paint (juce::Graphics& g)
         if (isMidiForLatch)
         {
             g.setColour (isLatched ? juce::Colour (0xff44ffff) : juce::Colour (0xff777777));
-            g.setFont (juce::FontOptions (8.5f));
+            g.setFont (juce::FontOptions (8.5f * fS));
             g.drawText ("HOLD NOTES", latchButton.getX() - 4, latchButton.getBottom() + 2,
                         latchButton.getWidth() + 8, 12, juce::Justification::centred);
         }
@@ -828,7 +827,7 @@ void PluginEditor::paint (juce::Graphics& g)
             // Root note display: right of the mode button
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
             g.setColour (juce::Colour (0xff44ffff));
-            g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
+            g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
             g.drawText ("ROOT: " + midiNoteToName (root),
                         W / 2 + 66, modeButtonY, 120, 22, juce::Justification::centredLeft);
 
@@ -840,24 +839,23 @@ void PluginEditor::paint (juce::Graphics& g)
                                             : std::abs (cents) < 25.0f ? juce::Colour (0xffffaa00)
                                                                         : juce::Colour (0xffff4444);
                 g.setColour (tunerCol);
-                g.setFont (juce::FontOptions (10.0f).withStyle ("Bold"));
+                g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
                 const juce::String centsStr = (cents >= 0.0f ? "+" : "") + juce::String ((int) cents) + "c";
                 g.drawText (midiNoteToName (tunerResult.midiNote) + " " + centsStr,
                             10, modeButtonY, W / 2 - 70, 22, juce::Justification::centredRight);
                 g.setColour (juce::Colour (0xff333333));
-                g.setFont (juce::FontOptions (7.5f));
+                g.setFont (juce::FontOptions (7.5f * fS));
                 g.drawText ("INPUT", 10, modeButtonY + 12, W / 2 - 70, 10, juce::Justification::centredRight);
             }
 
             // ADSR letters below each knob (MIDI mode)
             g.setColour (juce::Colour (0xff44ff44));
-            g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
-            const int kw = 44, gap = 16;
-            const int rowX = (W - 4 * kw - 3 * gap) / 2;
+            g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
             const int labelY = adsrAttackSlider.getBottom() + 2;
             static const char* labels[] = { "A", "D", "S", "R" };
+            const juce::Slider* adsrSliders[] = { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider };
             for (int i = 0; i < 4; ++i)
-                g.drawText (labels[i], rowX + i * (kw + gap), labelY, kw, 16,
+                g.drawText (labels[i], adsrSliders[i]->getX(), labelY, adsrSliders[i]->getWidth(), juce::roundToInt (16.0f * fS),
                             juce::Justification::centred);
         }
         else
@@ -867,19 +865,18 @@ void PluginEditor::paint (juce::Graphics& g)
             if (showEffAdsr)
             {
                 g.setColour (juce::Colour (0xff44ff44));
-                g.setFont (juce::FontOptions (13.0f).withStyle ("Bold"));
-                const int kw = 44, gap = 16;
-                const int rowX = (W - 4 * kw - 3 * gap) / 2;
+                g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
                 const int labelY = adsrAttackSlider.getBottom() + 2;
                 static const char* effLabels[] = { "A", "D", "S", "R" };
+                const juce::Slider* adsrSliders[] = { &adsrAttackSlider, &adsrDecaySlider, &adsrSustainSlider, &adsrReleaseSlider };
                 for (int i = 0; i < 4; ++i)
-                    g.drawText (effLabels[i], rowX + i * (kw + gap), labelY, kw, 16,
+                    g.drawText (effLabels[i], adsrSliders[i]->getX(), labelY, adsrSliders[i]->getWidth(), juce::roundToInt (16.0f * fS),
                                 juce::Justification::centred);
             }
 
             // effectAdsrButton label
             g.setColour (showEffAdsr ? juce::Colour (0xff44ff44) : juce::Colour (0xff555555));
-            g.setFont (juce::FontOptions (7.0f));
+            g.setFont (juce::FontOptions (7.0f * fS));
             g.drawText ("ENV SHAPE", effectAdsrButton.getX() - 6, effectAdsrButton.getBottom() + 2,
                         effectAdsrButton.getWidth() + 12, 10, juce::Justification::centred);
         }
@@ -887,8 +884,8 @@ void PluginEditor::paint (juce::Graphics& g)
 
     // ── Bottom branding + diagnostics ──────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
-    g.setFont (juce::FontOptions (8.0f));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 1 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
+    g.setFont (juce::FontOptions (8.0f * fS));
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 1 2", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
     // Diagnostic readout: actual engine state (not params — params lag real state)
     const bool isRec    = processorRef.isDonorRecording();
@@ -926,8 +923,8 @@ void PluginEditor::resized()
     drywetSlider.setBounds (W - 20 - sliderW, sliderY, sliderW, sliderH2);
 
     // ── Pads ────────────────────────────────────────────────────────────────────
-    const int padMarginX = juce::roundToInt (W * 0.074f);   // ~40
-    const int padW       = juce::roundToInt (W * 0.204f);   // ~110
+    const int padMarginX = juce::roundToInt (W * 0.130f);   // wider margin for side labels
+    const int padW       = juce::roundToInt (W * 0.160f);   // slightly smaller knobs
     const int padH       = juce::roundToInt (H * 0.137f);   // ~82
     const int pad1Y      = contentY + juce::roundToInt (H * 0.133f); // ~184
     const int pad2Y      = pad1Y + juce::roundToInt (H * 0.160f);    // ~280
@@ -974,19 +971,20 @@ void PluginEditor::resized()
     // ── Rec controls (below REC footswitch) ──────────────────────────────────────
     {
         const int belowSw = swY + swSize;
-        recLengthSlider.setBounds  (recCx - 52, belowSw + juce::roundToInt (H * 0.060f), 104, 16);
-        effectAdsrButton.setBounds (engCx - 24, belowSw + juce::roundToInt (H * 0.060f),  48, 16);
-        latchButton.setBounds      (phCx  - 28, belowSw + juce::roundToInt (H * 0.060f),  56, 16);
+        recLengthSlider.setBounds  (recCx - 52, belowSw + juce::roundToInt (H * 0.085f), 104, 16);
+        effectAdsrButton.setBounds (engCx - 24, belowSw + juce::roundToInt (H * 0.085f),  48, 16);
+        latchButton.setBounds      (phCx  - 28, belowSw + juce::roundToInt (H * 0.085f),  56, 16);
     }
 
     // ── MIDI utility row ─────────────────────────────────────────────────────────
-    const int modeY = swY + swSize + juce::roundToInt (H * 0.040f);  // ~498
+    const int modeY = swY + swSize + juce::roundToInt (H * 0.085f);
     modeButton.setBounds (W / 2 - 60, modeY, 120, 22);
     rootNoteSlider.setBounds (0, 0, 1, 1);   // hidden, just needs to exist for attachment
 
     // ── ADSR row ─────────────────────────────────────────────────────────────────
     {
-        const int kw = 44, gap = 16;
+        const int kw  = juce::roundToInt (W * 0.061f);
+        const int gap = juce::roundToInt (W * 0.022f);
         const int rowX = (W - 4 * kw - 3 * gap) / 2;
         const int rowY = modeY + 28;
         adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), rowY, kw, kw);
