@@ -835,11 +835,15 @@ void PluginEditor::paint (juce::Graphics& g)
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
             g.setColour (juce::Colour (0xff44ffff));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
-            // ROOT label left of slider, note name right — positions follow actual slider bounds
+            // "ROOT" floats above the slider; note name sits to its right
             const int sx = rootNoteSlider.getX();
             const int sy = rootNoteSlider.getY();
             const int sw = rootNoteSlider.getWidth();
-            g.drawText ("ROOT:", sx - 34, sy, 32, 22, juce::Justification::centredRight);
+            g.setColour (juce::Colour (0xff44ffff).withAlpha (0.65f));
+            g.setFont (juce::FontOptions (8.5f * fS).withStyle ("Bold"));
+            g.drawText ("ROOT", sx, sy - 13, sw, 12, juce::Justification::centred);
+            g.setColour (juce::Colour (0xff44ffff));
+            g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
             g.drawText (midiNoteToName (root), sx + sw + 4, sy, 34, 22, juce::Justification::centredLeft);
 
             // Tuner: live pitch of input signal (left of the mode button)
@@ -1007,10 +1011,8 @@ void PluginEditor::resized()
         latchButton.setBounds      (latchX, knobMid - 11, latchW, 22);
         effectAdsrButton.setBounds (latchX, knobMid - 11, latchW, 22);
 
-        // Right flank: ROOT label + slider + note name (MIDI mode only)
-        // label is 30px, 8px gap, then slider fills to 32px from right edge
-        const int rootLabelX  = adsrRight + 8;
-        const int rootSliderX = rootLabelX + 32;
+        // Right flank: ROOT slider — label floats above, note name to the right
+        const int rootSliderX = adsrRight + 8;
         const int rootSliderW = W - rootSliderX - 36;          // 36px reserved for note name
         rootNoteSlider.setBounds (rootSliderX, knobMid - 11, rootSliderW, 22);
     }
