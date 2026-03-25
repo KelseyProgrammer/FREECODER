@@ -213,7 +213,11 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     addAndMakeVisible (modeButton);
 
     rootNoteSlider.setRange (0.0, 127.0, 1.0);
-    rootNoteSlider.setVisible (false);   // hidden — driven via APVTS, shown as text in paint()
+    rootNoteSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+    rootNoteSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a2a2a));
+    rootNoteSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff44ffff));
+    rootNoteSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080808));
+    rootNoteSlider.setVisible (false);   // shown only in MIDI mode — timerCallback toggles
     addAndMakeVisible (rootNoteSlider);
 
     // Latch button
@@ -335,6 +339,8 @@ void PluginEditor::timerCallback()
         s->setVisible (showAdsr);
     latchButton.setVisible (isMidi);
     effectAdsrButton.setVisible (!isMidi);  // ADSR toggle only makes sense in effect mode
+    phraseButton.setEnabled (!isMidi);      // PHRASE loop doesn't apply in MIDI mode — voices handle playback
+    rootNoteSlider.setVisible (isMidi);
 
     // Update slot button colours: active = bright green, has data = dim, empty = dark
     const int activeSlot = processorRef.getActiveSlot();
@@ -826,12 +832,13 @@ void PluginEditor::paint (juce::Graphics& g)
         const int modeButtonY = modeButton.getY();
         if (isMidi)
         {
-            // Root note display: right of the mode button
+            // Root note: label left of slider, note name right of slider
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
             g.setColour (juce::Colour (0xff44ffff));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
-            g.drawText ("ROOT: " + midiNoteToName (root),
-                        W / 2 + 66, modeButtonY, 120, 22, juce::Justification::centredLeft);
+            g.drawText ("ROOT:", W / 2 + 62, modeButtonY, 38, 22, juce::Justification::centredLeft);
+            if (W >= 480)
+                g.drawText (midiNoteToName (root), W / 2 + 180, modeButtonY, 40, 22, juce::Justification::centredLeft);
 
             // Tuner: live pitch of input signal (left of the mode button)
             if (tunerResult.hasData)
@@ -982,7 +989,7 @@ void PluginEditor::resized()
     // ── MIDI utility row ─────────────────────────────────────────────────────────
     const int modeY = swY + swSize + juce::roundToInt (H * 0.085f);
     modeButton.setBounds (W / 2 - 60, modeY, 120, 22);
-    rootNoteSlider.setBounds (0, 0, 1, 1);   // hidden, just needs to exist for attachment
+    rootNoteSlider.setBounds (W / 2 + 102, modeY, 76, 22);   // right of mode button, visible in MIDI mode
 
     // ── ADSR row ─────────────────────────────────────────────────────────────────
     {

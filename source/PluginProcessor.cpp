@@ -229,6 +229,9 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             apvts.getRawParameterValue ("adsrSustain")->load(),
             apvts.getRawParameterValue ("adsrRelease")->load());
 
+        // Ensure phrase loop is off — MIDI voices handle playback independently
+        spectralEngine.setPhraseEngage (false);
+
         // Polyphonic MIDI instrument mode: each note gets its own voice + ADSR.
         const int  root    = (int) apvts.getRawParameterValue ("rootNote")->load();
         const bool latched = apvts.getRawParameterValue ("latch")->load() > 0.5f;
