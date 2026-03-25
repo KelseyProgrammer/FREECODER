@@ -525,22 +525,15 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawText (juce::String (morphSlider.getValue(),  2), mX, morphSlider.getBottom() + 4,  mW, 16, juce::Justification::centred);
     g.drawText (juce::String (drywetSlider.getValue(), 2), dX, drywetSlider.getBottom() + 4, dW, 16, juce::Justification::centred);
 
-    // ── Pad labels ──────────────────────────────────────────────────────────
-    const int lpad1Y = grainSlider.getY()   + grainSlider.getHeight()   / 2 - 10;
-    const int lpad2Y = scatterSlider.getY() + scatterSlider.getHeight() / 2 - 10;
-    const int rpad1Y = formantSlider.getY() + formantSlider.getHeight() / 2 - 10;
-
-    // Left pad labels — right-aligned to knob centre (much wider area than just the margin)
-    g.setColour (juce::Colour (0xffcccccc));
-    g.setFont (juce::FontOptions (12.0f * fS).withStyle ("Bold"));
-    g.drawText ("GRAIN",   2, lpad1Y, grainSlider.getX() - 4,   22, juce::Justification::centredRight);
-    g.drawText ("SCATTER", 2, lpad2Y, scatterSlider.getX() - 4, 22, juce::Justification::centredRight);
-
-    // Right pad labels — to the right of the knobs
-    const int rpRight = formantSlider.getRight();
-    const int rpad2Y = pitchSlider.getY() + pitchSlider.getHeight() / 2 - 10;
-    g.drawText ("FORMANT", rpRight + 4, rpad1Y, W - rpRight - 6, 22, juce::Justification::centredLeft);
-    g.drawText ("PITCH",   rpRight + 4, rpad2Y, W - rpRight - 6, 22, juce::Justification::centredLeft);
+    // ── Pad labels — centred below each knob (industry standard) ────────────
+    g.setColour (juce::Colour (0xffaaaaaa));
+    g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
+    const int lblGap = 3;
+    const int lblH   = juce::roundToInt (16.0f * fS);
+    g.drawText ("GRAIN",   grainSlider.getX(),   grainSlider.getBottom()   + lblGap, grainSlider.getWidth(),   lblH, juce::Justification::centred);
+    g.drawText ("SCATTER", scatterSlider.getX(), scatterSlider.getBottom() + lblGap, scatterSlider.getWidth(), lblH, juce::Justification::centred);
+    g.drawText ("FORMANT", formantSlider.getX(), formantSlider.getBottom() + lblGap, formantSlider.getWidth(), lblH, juce::Justification::centred);
+    g.drawText ("PITCH",   pitchSlider.getX(),   pitchSlider.getBottom()   + lblGap, pitchSlider.getWidth(),   lblH, juce::Justification::centred);
 
     // ── Centre display (sunken LCD panel look) ───────────────────────────────
     // Outer shadow bevel
@@ -718,6 +711,15 @@ void PluginEditor::paint (juce::Graphics& g)
         g.fillRoundedRectangle (filled.toFloat(), 3.0f);
     }
 
+    // ── Section divider above footswitch row ─────────────────────────────────
+    {
+        const int sepY = recButton.getY() - juce::roundToInt (H * 0.022f);
+        g.setColour (juce::Colour (0xff2a4a2a));
+        g.drawHorizontalLine (sepY, 16.0f, (float)(W - 16));
+        g.setColour (juce::Colour (0xff1a2a1a));
+        g.drawHorizontalLine (sepY + 1, 16.0f, (float)(W - 16));
+    }
+
     // ── Footswitch labels (4-button row) ──────────────────────────────────────
     const int recCx_p = recButton.getBounds().getCentreX();
     const int revCx_p = reverseButton.getBounds().getCentreX();
@@ -885,7 +887,7 @@ void PluginEditor::paint (juce::Graphics& g)
     // ── Bottom branding + diagnostics ──────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f * fS));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 1 2", 0, H - 16, W - 120, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 1 3", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
     // Diagnostic readout: actual engine state (not params — params lag real state)
     const bool isRec    = processorRef.isDonorRecording();
@@ -923,11 +925,12 @@ void PluginEditor::resized()
     drywetSlider.setBounds (W - 20 - sliderW, sliderY, sliderW, sliderH2);
 
     // ── Pads ────────────────────────────────────────────────────────────────────
-    const int padMarginX = juce::roundToInt (W * 0.130f);   // wider margin for side labels
-    const int padW       = juce::roundToInt (W * 0.160f);   // slightly smaller knobs
-    const int padH       = juce::roundToInt (H * 0.137f);   // ~82
-    const int pad1Y      = contentY + juce::roundToInt (H * 0.133f); // ~184
-    const int pad2Y      = pad1Y + juce::roundToInt (H * 0.160f);    // ~280
+    const int padMarginX = juce::roundToInt (W * 0.048f);   // narrow gutter — labels go below knobs
+    const int padW       = juce::roundToInt (W * 0.165f);   // knob width
+    const int padTotalH  = juce::roundToInt (H * 0.150f);   // knob + label row
+    const int padH       = juce::roundToInt (padTotalH * 0.82f);  // knob only (label in bottom 18%)
+    const int pad1Y      = contentY + juce::roundToInt (H * 0.133f);
+    const int pad2Y      = pad1Y   + juce::roundToInt (H * 0.175f);  // wider row gap to fit label
     const int leftX      = padMarginX;
     const int rightX     = W - padW - padMarginX;
 
@@ -937,10 +940,10 @@ void PluginEditor::resized()
     pitchSlider.setBounds   (rightX, pad2Y, padW, padH);
 
     // ── Centre display ──────────────────────────────────────────────────────────
-    const int dispGap = juce::roundToInt (W * 0.026f);   // ~14
+    const int dispGap = juce::roundToInt (W * 0.020f);
     const int dispX   = leftX + padW + dispGap;
     const int dispW   = rightX - dispX - dispGap;
-    displayBounds     = { dispX, pad1Y, dispW, pad2Y + padH - pad1Y };
+    displayBounds     = { dispX, pad1Y, dispW, pad2Y + padTotalH - pad1Y };
 
     // ── Donor slot buttons below the display ────────────────────────────────────
     {
@@ -958,7 +961,7 @@ void PluginEditor::resized()
 
     // ── Footswitches (4-button row: REC / REVERSE / PHRASE / FREEZE) ─────────────
     const int swSize = juce::roundToInt (juce::jmin (W * 0.130f, H * 0.118f));  // ~70
-    const int swY    = pad2Y + padH + juce::roundToInt (H * 0.040f);
+    const int swY    = pad2Y + padTotalH + juce::roundToInt (H * 0.030f);
     const int recCx  = W / 5;
     const int revCx  = W * 2 / 5;
     const int phCx   = W * 3 / 5;
