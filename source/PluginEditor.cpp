@@ -341,7 +341,7 @@ void PluginEditor::timerCallback()
     latchButton.setVisible (isMidi);
     effectAdsrButton.setVisible (!isMidi);  // ADSR toggle only makes sense in effect mode
     rootNoteSlider.setVisible (isMidi);
-    repaint (modeButton.getBounds().withWidth (getWidth()));  // root note text + tuner update each tick
+    repaint (0, modeButton.getY(), getWidth(), getHeight() - modeButton.getY());  // mode row + ADSR row
 
     // Update slot button colours: active = bright green, has data = dim, empty = dark
     const int activeSlot = processorRef.getActiveSlot();
@@ -835,9 +835,12 @@ void PluginEditor::paint (juce::Graphics& g)
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
             g.setColour (juce::Colour (0xff44ffff));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
-            // ROOT: label [+64..+92] | slider [+94..+174] | note name [+177..+205]
-            g.drawText ("ROOT:", W / 2 + 64, modeButtonY, 28, 22, juce::Justification::centredLeft);
-            g.drawText (midiNoteToName (root), W / 2 + 177, modeButtonY, 28, 22, juce::Justification::centredLeft);
+            // ROOT label left of slider, note name right — positions follow actual slider bounds
+            const int sx = rootNoteSlider.getX();
+            const int sy = rootNoteSlider.getY();
+            const int sw = rootNoteSlider.getWidth();
+            g.drawText ("ROOT:", sx - 34, sy, 32, 22, juce::Justification::centredRight);
+            g.drawText (midiNoteToName (root), sx + sw + 4, sy, 34, 22, juce::Justification::centredLeft);
 
             // Tuner: live pitch of input signal (left of the mode button)
             if (tunerResult.hasData)
@@ -977,28 +980,37 @@ void PluginEditor::resized()
     phraseButton.setBounds  (phCx  - swSize / 2, swY, swSize, swSize);
     engageButton.setBounds  (engCx - swSize / 2, swY, swSize, swSize);
 
-    // ── Sub-controls row: one item under each relevant footswitch ────────────────
-    // Positioned just below the footswitch sub-labels (~18px tall), no overlap.
-    const int subCtrlY = swY + swSize + 22;
-    recLengthSlider.setBounds  (recCx - 52,  subCtrlY, 104, 16);  // below REC
-    latchButton.setBounds      (phCx  - 28,  subCtrlY,  56, 22);  // below PHRASE — MIDI mode only
-    effectAdsrButton.setBounds (engCx - 28,  subCtrlY,  56, 22);  // below FREEZE — effect mode only
+    // ── Mode row: rec length (left) + MIDI MODE button (centre) ─────────────────
+    const int modeY = swY + swSize + 30;  // 30px below footswitch sub-labels
+    recLengthSlider.setBounds (recCx - 52, modeY, 104, 16);
+    modeButton.setBounds      (W / 2 - 60, modeY, 120, 22);
 
-    // ── MIDI MODE button + root note slider (own row, below sub-controls) ────────
-    const int modeY = subCtrlY + 30;
-    modeButton.setBounds     (W / 2 - 60, modeY, 120, 22);
-    rootNoteSlider.setBounds (W / 2 + 94, modeY,  80, 22);  // MIDI mode only — ROOT: label at +64
-
-    // ── ADSR row ─────────────────────────────────────────────────────────────────
+    // ── ADSR row: flanking controls fill the empty left / right space ─────────────
     {
-        const int kw  = juce::roundToInt (W * 0.075f);
-        const int gap = juce::roundToInt (W * 0.022f);
-        const int rowX = (W - 4 * kw - 3 * gap) / 2;
-        const int rowY = modeY + 28;
-        adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), rowY, kw, kw);
-        adsrDecaySlider  .setBounds (rowX + 1 * (kw + gap), rowY, kw, kw);
-        adsrSustainSlider.setBounds (rowX + 2 * (kw + gap), rowY, kw, kw);
-        adsrReleaseSlider.setBounds (rowX + 3 * (kw + gap), rowY, kw, kw);
+        const int kw      = juce::roundToInt (W * 0.075f);
+        const int gap     = juce::roundToInt (W * 0.022f);
+        const int rowX    = (W - 4 * kw - 3 * gap) / 2;      // left edge of first knob
+        const int adsrRight = rowX + 4 * kw + 3 * gap;        // right edge of last knob
+        const int adsrY   = modeY + 28;
+        const int knobMid = adsrY + kw / 2;                    // vertical centre of knobs
+
+        adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), adsrY, kw, kw);
+        adsrDecaySlider  .setBounds (rowX + 1 * (kw + gap), adsrY, kw, kw);
+        adsrSustainSlider.setBounds (rowX + 2 * (kw + gap), adsrY, kw, kw);
+        adsrReleaseSlider.setBounds (rowX + 3 * (kw + gap), adsrY, kw, kw);
+
+        // Left flank: LATCH (MIDI) or effectADSR (effect) — centred in left space
+        const int latchW = 56;
+        const int latchX = (rowX - latchW) / 2;
+        latchButton.setBounds      (latchX, knobMid - 11, latchW, 22);
+        effectAdsrButton.setBounds (latchX, knobMid - 11, latchW, 22);
+
+        // Right flank: ROOT label + slider + note name (MIDI mode only)
+        // label is 30px, 8px gap, then slider fills to 32px from right edge
+        const int rootLabelX  = adsrRight + 8;
+        const int rootSliderX = rootLabelX + 32;
+        const int rootSliderW = W - rootSliderX - 36;          // 36px reserved for note name
+        rootNoteSlider.setBounds (rootSliderX, knobMid - 11, rootSliderW, 22);
     }
 
     // ── Inspector (tiny, top-right corner) ───────────────────────────────────────
