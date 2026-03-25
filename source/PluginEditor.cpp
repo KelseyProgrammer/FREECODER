@@ -980,10 +980,12 @@ void PluginEditor::resized()
     phraseButton.setBounds  (phCx  - swSize / 2, swY, swSize, swSize);
     engageButton.setBounds  (engCx - swSize / 2, swY, swSize, swSize);
 
-    // ── Mode row: rec length (left) + MIDI MODE button (centre) ─────────────────
-    const int modeY = swY + swSize + 30;  // 30px below footswitch sub-labels
-    recLengthSlider.setBounds (recCx - 52, modeY, 104, 16);
-    modeButton.setBounds      (W / 2 - 60, modeY, 120, 22);
+    // ── Mode button: centred directly above the donor display window ─────────────
+    modeButton.setBounds (displayBounds.getCentreX() - 60, pad1Y - 26, 120, 22);
+
+    // ── Rec length slider: below footswitch sub-labels (clears "CAPTURE DONOR") ──
+    const int recLengthY = swY + swSize + 46;
+    recLengthSlider.setBounds (recCx - 52, recLengthY, 104, 16);
 
     // ── ADSR row: flanking controls fill the empty left / right space ─────────────
     {
@@ -991,7 +993,7 @@ void PluginEditor::resized()
         const int gap     = juce::roundToInt (W * 0.022f);
         const int rowX    = (W - 4 * kw - 3 * gap) / 2;      // left edge of first knob
         const int adsrRight = rowX + 4 * kw + 3 * gap;        // right edge of last knob
-        const int adsrY   = modeY + 28;
+        const int adsrY   = recLengthY + 28;
         const int knobMid = adsrY + kw / 2;                    // vertical centre of knobs
 
         adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), adsrY, kw, kw);

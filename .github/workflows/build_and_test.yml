@@ -122,10 +122,57 @@ jobs:
           7z x pluginval_${{ runner.os }}.zip
           ${{ matrix.pluginval-binary }} --strictness-level 10 --verbose --validate "${{ env.VST3_PATH }}"
 
+      - name: Import Certificate (macOS)
+        if: ${{ runner.os == 'macOS' && env.CERTIFICATE_P12 != '' }}
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          security create-keychain -p "temp_build_keychain" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "temp_build_keychain" build.keychain
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychain -d user -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "temp_build_keychain" build.keychain
+          rm certificate.p12
+
+      - name: Codesign (macOS)
+        if: ${{ runner.os == 'macOS' && env.DEVELOPER_ID_APPLICATION != '' }}
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          ENTITLEMENTS="${{ github.workspace }}/packaging/entitlements.plist"
+          for path in "${{ env.VST3_PATH }}" "${{ env.AU_PATH }}" "${{ env.CLAP_PATH }}" "${{ env.STANDALONE_PATH }}"; do
+            [ -e "$path" ] && codesign --force -s "$DEVELOPER_ID_APPLICATION" -v "$path" \
+              --deep --strict --options=runtime --timestamp \
+              --entitlements "$ENTITLEMENTS"
+          done
+
       - name: Zip (macOS)
         if: ${{ runner.os == 'macOS' }}
         working-directory: ${{ env.ARTIFACTS_PATH }}
         run: |
+          7z a -tzip "${{ env.ARTIFACT_NAME }}.zip" VST3 AU CLAP "-xr!lib${{ env.PRODUCT_NAME }}_SharedCode.a"
+
+      - name: Notarize (macOS)
+        if: ${{ runner.os == 'macOS' && env.NOTARIZATION_USERNAME != '' }}
+        env:
+          NOTARIZATION_USERNAME: ${{ secrets.NOTARIZATION_USERNAME }}
+          NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
+        run: |
+          xcrun notarytool submit "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.zip" \
+            --apple-id "$NOTARIZATION_USERNAME" \
+            --password "$NOTARIZATION_PASSWORD" \
+            --team-id "672HDMZ7DR" \
+            --wait
+          # Staple notarization ticket to each bundle
+          for path in "${{ env.VST3_PATH }}" "${{ env.AU_PATH }}" "${{ env.CLAP_PATH }}" "${{ env.STANDALONE_PATH }}"; do
+            [ -e "$path" ] && xcrun stapler staple "$path" || true
+          done
+          # Re-zip with stapled bundles
+          cd "${{ env.ARTIFACTS_PATH }}"
+          rm -f "${{ env.ARTIFACT_NAME }}.zip"
           7z a -tzip "${{ env.ARTIFACT_NAME }}.zip" VST3 AU CLAP "-xr!lib${{ env.PRODUCT_NAME }}_SharedCode.a"
 
       - name: Zip

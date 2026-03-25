@@ -88,6 +88,7 @@ juce_add_plugin("${PROJECT_NAME}"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
+    HARDENED_RUNTIME_ENABLED TRUE
     FORMATS "${FORMATS}"
 
     # The name of your final executable

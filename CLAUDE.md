@@ -229,6 +229,9 @@ Feature branch pushes trigger no CI — develop freely.
 - **Mono input handling** — ~~done~~: `isBusesLayoutSupported` accepts mono in + stereo out; `processBlock` upmixes ch 0 → ch 1 before engine processing
 - **Resizable window persistence** — ~~done~~: `savedEditorWidth/Height` saved in `getStateInformation`, restored in `setStateInformation`; editor reads them at construction via `setSize()`
 
+### Future / planned
+- **FL Studio instrument version** — a second CMake target with `IS_SYNTH TRUE` so FREECODER appears in FL Studio's instrument slots and receives MIDI directly without the Patcher workaround. Same codebase, different plugin type flag, separate bundle ID (e.g. `com.amentaudio.freecoder.instrument`) and display name ("FREECODER Instrument"). Not urgent.
+
 ### Lower priority / polish
 - **FootswitchButton for PHRASE + REVERSE** — currently still TextButton; would complete the visual consistency of all four footswitches
 - **Slot button indicator** — slot buttons A/B/C don't visually indicate which slot has a recording; adding a dot or dim glow when `donorSlotHasData(n)` would improve usability
