@@ -340,8 +340,8 @@ void PluginEditor::timerCallback()
         s->setVisible (showAdsr);
     latchButton.setVisible (isMidi);
     effectAdsrButton.setVisible (!isMidi);  // ADSR toggle only makes sense in effect mode
-    phraseButton.setEnabled (!isMidi);      // PHRASE loop doesn't apply in MIDI mode — voices handle playback
     rootNoteSlider.setVisible (isMidi);
+    repaint (modeButton.getBounds().withWidth (getWidth()));  // root note text + tuner update each tick
 
     // Update slot button colours: active = bright green, has data = dim, empty = dark
     const int activeSlot = processorRef.getActiveSlot();
@@ -837,9 +837,9 @@ void PluginEditor::paint (juce::Graphics& g)
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
             g.setColour (juce::Colour (0xff44ffff));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
-            g.drawText ("ROOT:", W / 2 + 62, modeButtonY, 38, 22, juce::Justification::centredLeft);
-            // Note name sits right of the slider (slider ends at W/2+166), updates every repaint
-            g.drawText (midiNoteToName (root), W / 2 + 170, modeButtonY, 44, 22, juce::Justification::centredLeft);
+            // "ROOT:" [64..98] slider [100..170] "C4" [173..209] — fits at min width 420
+            g.drawText ("ROOT:", W / 2 + 64, modeButtonY, 34, 22, juce::Justification::centredLeft);
+            g.drawText (midiNoteToName (root), W / 2 + 173, modeButtonY, 36, 22, juce::Justification::centredLeft);
 
             // Tuner: live pitch of input signal (left of the mode button)
             if (tunerResult.hasData)
@@ -980,24 +980,24 @@ void PluginEditor::resized()
     engageButton.setBounds  (engCx - swSize / 2, swY, swSize, swSize);
 
     // ── Rec controls (below REC footswitch) ──────────────────────────────────────
+    const int modeY = swY + swSize + juce::roundToInt (H * 0.055f);
     {
         const int belowSw = swY + swSize;
-        recLengthSlider.setBounds  (recCx - 52, belowSw + juce::roundToInt (H * 0.085f), 104, 16);
-        effectAdsrButton.setBounds (engCx - 24, belowSw + juce::roundToInt (H * 0.085f),  48, 16);
-        latchButton.setBounds      (phCx  - 28, belowSw + juce::roundToInt (H * 0.085f),  56, 16);
+        recLengthSlider.setBounds (recCx - 52, belowSw + juce::roundToInt (H * 0.055f), 104, 16);
     }
 
-    // ── MIDI utility row ─────────────────────────────────────────────────────────
-    const int modeY = swY + swSize + juce::roundToInt (H * 0.085f);
-    modeButton.setBounds (W / 2 - 60, modeY, 120, 22);
-    rootNoteSlider.setBounds (W / 2 + 66, modeY, 100, 22);   // right of mode button, visible in MIDI mode
+    // ── MIDI utility row: [LATCH] [MIDI MODE] [ROOT slider / ADSR btn] ────────────
+    latchButton.setBounds      (W / 2 - 120, modeY, 56, 22);   // left of mode button — MIDI mode only
+    modeButton.setBounds       (W / 2 -  60, modeY, 120, 22);
+    effectAdsrButton.setBounds (W / 2 +  64, modeY,  56, 22);  // right of mode button — effect mode only
+    rootNoteSlider.setBounds   (W / 2 + 100, modeY,  70, 22);  // right of ROOT: label — MIDI mode only
 
     // ── ADSR row ─────────────────────────────────────────────────────────────────
     {
-        const int kw  = juce::roundToInt (W * 0.061f);
+        const int kw  = juce::roundToInt (W * 0.080f);
         const int gap = juce::roundToInt (W * 0.022f);
         const int rowX = (W - 4 * kw - 3 * gap) / 2;
-        const int rowY = modeY + 28;
+        const int rowY = modeY + 30;
         adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), rowY, kw, kw);
         adsrDecaySlider  .setBounds (rowX + 1 * (kw + gap), rowY, kw, kw);
         adsrSustainSlider.setBounds (rowX + 2 * (kw + gap), rowY, kw, kw);

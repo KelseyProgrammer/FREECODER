@@ -229,8 +229,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             apvts.getRawParameterValue ("adsrSustain")->load(),
             apvts.getRawParameterValue ("adsrRelease")->load());
 
-        // Ensure phrase loop is off — MIDI voices handle playback independently
-        spectralEngine.setPhraseEngage (false);
+        // FREEZE and PHRASE both work in MIDI mode — they shape the spectral/phrase layer
+        // that blends with per-voice playback via the morph knob.
+        spectralEngine.setEngage       (apvts.getRawParameterValue ("engage")->load()       > 0.5f);
+        spectralEngine.setPhraseEngage (apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f);
 
         // Polyphonic MIDI instrument mode: each note gets its own voice + ADSR.
         const int  root    = (int) apvts.getRawParameterValue ("rootNote")->load();

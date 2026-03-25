@@ -1062,14 +1062,16 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
     // Deferred OLA flush — clear stale wet state once silent.
     // MIDI mode: flush when all voice ADSRs have finished.
     // Effect mode: flush when engageGain ramp completes.
-    const bool midiDone   = midiMode  && !anyVoiceActive() && donorFrozen;
+    // MIDI flush: clear stale OLA when all voices have finished AND freeze isn't held.
+    // Don't flush while donorFrozen — that means the user has FREEZE engaged and expects
+    // the spectral snapshot to persist for the next note; flushing would cause a stutter.
+    const bool midiDone   = midiMode  && !anyVoiceActive() && !donorFrozen
+                            && (engageGain.isSmoothing() || engageGain.getCurrentValue() > 0.001f);
     const bool effectDone = !midiMode && !donorFrozen && !phraseEngaged
-                            && !engageGain.isSmoothing()     && engageGain.getCurrentValue()     < 0.001f
+                            && !engageGain.isSmoothing()       && engageGain.getCurrentValue()       < 0.001f
                             && !phraseEngageGain.isSmoothing() && phraseEngageGain.getCurrentValue() < 0.001f;
     if (midiDone || effectDone)
     {
-        if (midiDone)
-            donorFrozen = false;
 
         for (auto& cs : ch)
         {
