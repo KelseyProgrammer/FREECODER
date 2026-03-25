@@ -299,6 +299,59 @@
 
     footer a:hover { color: #39ff6a; }
 
+    .video-wrap {
+      margin-bottom: 56px;
+    }
+
+    .video-container {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%; /* 16:9 */
+      height: 0;
+      overflow: hidden;
+      border-radius: 6px;
+      border: 1px solid #1e1e1e;
+      margin-top: 16px;
+    }
+
+    .video-container iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: 0;
+    }
+
+    .notarized {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: #001a08;
+      border: 1px solid #003a14;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      color: #39ff6a;
+      line-height: 1.6;
+      opacity: 0.85;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .social-links a {
+      color: #555;
+      text-decoration: none;
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition: color 0.15s;
+    }
+
+    .social-links a:hover { color: #39ff6a; }
+
     @media (max-width: 500px) {
       .logo { font-size: 2.5rem; }
       .features { grid-template-columns: 1fr; }
@@ -313,7 +366,7 @@
 <header>
   <div class="logo">FREECODER</div>
   <div class="tagline">Spectral Morphing Workstation</div>
-  <div class="by">by Ament Audio &nbsp;&middot;&nbsp; v0.2.13 &nbsp;&middot;&nbsp; VST3 &nbsp;&middot;&nbsp; AU &nbsp;&middot;&nbsp; CLAP</div>
+  <div class="by">by Ament Audio &nbsp;&middot;&nbsp; v0.2.20 &nbsp;&middot;&nbsp; VST3 &nbsp;&middot;&nbsp; AU &nbsp;&middot;&nbsp; CLAP</div>
 </header>
 
 <main>
@@ -369,6 +422,17 @@
     </div>
   </div>
 
+  <!-- Demo Video -->
+  <div class="video-wrap">
+    <div class="section-title">Watch</div>
+    <div class="video-container">
+      <iframe src="https://www.youtube.com/embed/YWIRXhS-TbM"
+              title="FREECODER — Spectral Morphing Workstation Demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+    </div>
+  </div>
+
   <!-- Get It -->
   <div class="get-it">
     <div class="section-title">Get It</div>
@@ -396,9 +460,8 @@
       Then restart your DAW.
     </p>
 
-    <div class="warning">
-      &#9888; &nbsp;This build is unsigned. On macOS, right-click the plugin bundle &rarr; Open &rarr; Allow, or run:<br>
-      <code>xattr -cr ~/Library/Audio/Plug-Ins/VST3/FREECODER.vst3</code>
+    <div class="notarized">
+      &#10003; &nbsp;Signed &amp; notarized &mdash; no security warnings. Double-click to install.
     </div>
 
     <div class="manual-link"><a href="manual.html">User Manual &rarr;</a></div>
@@ -424,11 +487,15 @@
 </main>
 
 <footer>
+  <div class="social-links">
+    <a href="https://www.youtube.com/@AmentAudio" target="_blank" rel="noopener">YouTube</a>
+    <a href="https://www.instagram.com/amentaudio/" target="_blank" rel="noopener">Instagram</a>
+    <a href="https://www.reddit.com/user/AmentAudio/" target="_blank" rel="noopener">Reddit</a>
+    <a href="https://github.com/KelseyProgrammer/FREECODER" target="_blank" rel="noopener">GitHub</a>
+  </div>
   <a href="index.html">&larr; Ament Audio</a>
   &nbsp;&middot;&nbsp;
   <a href="manual.html">Manual</a>
-  &nbsp;&middot;&nbsp;
-  <a href="https://github.com/KelseyProgrammer/FREECODER">GitHub</a>
   &nbsp;&middot;&nbsp;
   &copy; 2026 Ament Audio
 </footer>
