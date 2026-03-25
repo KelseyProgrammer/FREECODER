@@ -15,7 +15,7 @@ Built on the [Pamplejuce](https://github.com/sudara/pamplejuce) template (JUCE 8
 
 | Field | Value |
 |---|---|
-| Version | 0.2.9 |
+| Version | 0.2.20 |
 | Plugin Name | FREECODER |
 | Manufacturer | Ament Audio |
 | Manufacturer Code | `Amnt` |
@@ -40,7 +40,7 @@ pamplejuce/
 │   ├── PluginProcessor.h/.cpp   — APVTS params, processBlock, state I/O
 │   ├── PluginEditor.h/.cpp      — UI: FreecoderLookAndFeel, all controls
 │   ├── SpectralEngine.h/.cpp    — all DSP: FFT OLA, granular, phase vocoder, MIDI voices
-│   ├── FootswitchButton.h       — self-painting juce::Button subclass (REC + FREEZE)
+│   ├── FootswitchButton.h       — self-painting juce::Button subclass (all 4 footswitches: REC, FREEZE, PHRASE, REVERSE)
 │   └── PresetManager.h/.cpp     — factory + user preset save/load
 ├── assets/
 │   └── images/
@@ -209,7 +209,9 @@ Feature branch pushes trigger no CI — develop freely.
 
 **Release flow:**
 1. Merge feature branch → `main` (CI validates all platforms)
-2. `git tag v0.2.2 && git push --tags` → CI builds + creates GitHub Release automatically
+2. `git tag v0.2.20 && git push --tags` → CI builds + creates GitHub Release automatically
+   - macOS: signed + notarized via CI (Developer ID Application cert, team 672HDMZ7DR)
+   - All 5 GitHub secrets set: `CERTIFICATE_P12`, `CERTIFICATE_PASSWORD`, `DEVELOPER_ID_APPLICATION`, `NOTARIZATION_USERNAME`, `NOTARIZATION_PASSWORD`
 
 **Do not use `Builds/`** (Xcode generator, 10× larger). Use `BuildsNinja/` exclusively.
 
@@ -224,8 +226,9 @@ Feature branch pushes trigger no CI — develop freely.
 - **AU validation** — ~~done~~: `auval -v aumf Frcd Amnt` passes clean (confirmed 0.2.5)
 
 ### Medium priority
-- **Code signing / notarization** — plugin is currently unsigned; users must manually allow via `xattr -cr` or right-click → Open. Requires Apple Developer account + CI secrets for automated signing
+- **Code signing / notarization** — ~~done~~: macOS builds are signed (Developer ID Application) and notarized via CI. Team ID 672HDMZ7DR. Entitlements: `com.apple.security.cs.allow-unsigned-executable-memory`. All 5 secrets configured in GitHub.
 - **Windows testing** — CI builds Windows VST3 but it has not been manually tested in a DAW
+- **Windows code signing** — Azure Trusted Signing workflow steps already in `build_and_test.yml`; secrets (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_ENDPOINT`, `AZURE_CODE_SIGNING_NAME`, `AZURE_CERT_PROFILE_NAME`) not yet configured
 - **Mono input handling** — ~~done~~: `isBusesLayoutSupported` accepts mono in + stereo out; `processBlock` upmixes ch 0 → ch 1 before engine processing
 - **Resizable window persistence** — ~~done~~: `savedEditorWidth/Height` saved in `getStateInformation`, restored in `setStateInformation`; editor reads them at construction via `setSize()`
 
@@ -233,10 +236,12 @@ Feature branch pushes trigger no CI — develop freely.
 - **FL Studio instrument version** — a second CMake target with `IS_SYNTH TRUE` so FREECODER appears in FL Studio's instrument slots and receives MIDI directly without the Patcher workaround. Same codebase, different plugin type flag, separate bundle ID (e.g. `com.amentaudio.freecoder.instrument`) and display name ("FREECODER Instrument"). Not urgent.
 
 ### Lower priority / polish
-- **FootswitchButton for PHRASE + REVERSE** — currently still TextButton; would complete the visual consistency of all four footswitches
-- **Slot button indicator** — slot buttons A/B/C don't visually indicate which slot has a recording; adding a dot or dim glow when `donorSlotHasData(n)` would improve usability
-- **Label layout at small sizes** — footswitch label text can overlap at minimum window width (420px); clamp or hide sub-labels below a threshold
-- **Preset name display** — current name shown in header; no indication of unsaved changes (dirty state)
+- **FootswitchButton for PHRASE + REVERSE** — ~~done~~: all four footswitches are `FootswitchButton` instances
+- **Slot button indicator** — ~~done~~: `timerCallback` updates A/B/C button colors (bright green = active, dim green = has data, gray = empty); small painted dot below each button in `paint()`
+- **Label layout at small sizes** — ~~done~~: `showSubs = (W >= 460)` hides footswitch sub-labels below 460px
+- **Preset name display** — ~~done~~: preset name in header shows `*` suffix when `isDirty` is true
+- **dmg.json branding** — ~~done~~: updated to FREECODER title, `freecoder.icns`, correct file paths
+- **Gumroad listing** — ~~done~~: new product at `chrisament.gumroad.com/l/klogc`; all URLs in docs and README updated
 
 ---
 

@@ -1,7 +1,7 @@
 # FREECODER
 **Spectral Morphing Workstation** — VST3 · AU · CLAP
 
-by [Ament Audio](https://chrisament.gumroad.com/l/kvbani)
+by [Ament Audio](https://chrisament.gumroad.com/l/klogc)
 
 ---
 
@@ -28,7 +28,7 @@ The result is something between a vocoder, a granular reverb, and an audio prism
 
 ## Download
 
-**[Buy — $29](https://chrisament.gumroad.com/l/kvbani)** · 7-day honor system trial available via [GitHub Releases](https://github.com/KelseyProgrammer/FREECODER/releases/latest)
+**[Buy — $29](https://chrisament.gumroad.com/l/klogc)** · 7-day honor system trial available via [GitHub Releases](https://github.com/KelseyProgrammer/FREECODER/releases/latest)
 
 **[Product Page](https://kelseyProgrammer.github.io/FREECODER/freecoder.html)** · **[User Manual](https://kelseyProgrammer.github.io/FREECODER/manual.html)**
 
@@ -42,10 +42,7 @@ The result is something between a vocoder, a granular reverb, and an audio prism
 | AU | `~/Library/Audio/Plug-Ins/Components/` |
 | CLAP | `~/Library/Audio/Plug-Ins/CLAP/` |
 
-> **Unsigned build:** right-click the plugin → Open → Allow, or run:
-> ```bash
-> xattr -cr ~/Library/Audio/Plug-Ins/VST3/FREECODER.vst3
-> ```
+> macOS builds are **signed and notarized** — no security warnings.
 
 ---
 
@@ -61,7 +58,7 @@ The result is something between a vocoder, a granular reverb, and an audio prism
 | Polyphony | 8 voices (MIDI mode) |
 | Donor length | Up to 5 seconds · 3 slots |
 | Requires | macOS 10.13+ · 64-bit DAW |
-| Version | 0.2.12 |
+| Version | 0.2.20 |
 
 ---
 

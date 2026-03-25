@@ -718,6 +718,24 @@ void PluginEditor::paint (juce::Graphics& g)
         g.fillRoundedRectangle (filled.toFloat(), 3.0f);
     }
 
+    // ── Donor slot data indicator dots (below A/B/C buttons) ─────────────────
+    {
+        const int activeSlot = processorRef.getActiveSlot();
+        for (int i = 0; i < SpectralEngine::kNumDonorSlots; ++i)
+        {
+            const bool isActive = (i == activeSlot);
+            const bool hasData  = processorRef.donorSlotHasData (i);
+            const auto sb = slotButtons[i]->getBounds();
+            const float dotR  = 2.5f;
+            const float dotCx = (float) sb.getCentreX();
+            const float dotY  = (float) sb.getBottom() + 2.0f;
+            g.setColour (isActive  ? juce::Colour (0xff44ff44)
+                        : hasData  ? juce::Colour (0xff00aa00).withAlpha (0.8f)
+                                   : juce::Colour (0xff222222));
+            g.fillEllipse (dotCx - dotR, dotY, dotR * 2.0f, dotR * 2.0f);
+        }
+    }
+
     // ── Section divider above footswitch row ─────────────────────────────────
     {
         const int sepY = recButton.getY() - juce::roundToInt (H * 0.022f);
@@ -900,7 +918,7 @@ void PluginEditor::paint (juce::Graphics& g)
     // ── Bottom branding + diagnostics ──────────────────────────────────────────
     g.setColour (juce::Colour (0xff2a2a2a));
     g.setFont (juce::FontOptions (8.0f * fS));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 1 3", 0, H - 16, W - 120, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 2 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
     // Diagnostic readout: actual engine state (not params — params lag real state)
     const bool isRec    = processorRef.isDonorRecording();
