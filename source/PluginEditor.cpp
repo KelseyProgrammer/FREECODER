@@ -811,15 +811,13 @@ void PluginEditor::paint (juce::Graphics& g)
             g.drawText (labels[t], tx - 12, labelY, 24, 16, juce::Justification::centred);
         }
 
-        // LATCH label — only in MIDI mode
-        const bool isLatched = processorRef.apvts.getRawParameterValue ("latch")->load() > 0.5f;
-        const bool isMidiForLatch = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
-        if (isMidiForLatch)
+        // LATCH sub-label
+        if (processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f)
         {
-            g.setColour (isLatched ? juce::Colour (0xff44ffff) : juce::Colour (0xff777777));
-            g.setFont (juce::FontOptions (8.5f * fS));
-            g.drawText ("HOLD NOTES", latchButton.getX() - 4, latchButton.getBottom() + 2,
-                        latchButton.getWidth() + 8, 12, juce::Justification::centred);
+            g.setColour (juce::Colour (0xff444444));
+            g.setFont (juce::FontOptions (8.0f * fS));
+            g.drawText ("LATCH", latchButton.getX(), latchButton.getBottom() + 2,
+                        latchButton.getWidth(), 10, juce::Justification::centred);
         }
     }
 
@@ -837,9 +835,9 @@ void PluginEditor::paint (juce::Graphics& g)
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
             g.setColour (juce::Colour (0xff44ffff));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
-            // "ROOT:" [64..98] slider [100..170] "C4" [173..209] — fits at min width 420
-            g.drawText ("ROOT:", W / 2 + 64, modeButtonY, 34, 22, juce::Justification::centredLeft);
-            g.drawText (midiNoteToName (root), W / 2 + 173, modeButtonY, 36, 22, juce::Justification::centredLeft);
+            // ROOT: label [+64..+92] | slider [+94..+174] | note name [+177..+205]
+            g.drawText ("ROOT:", W / 2 + 64, modeButtonY, 28, 22, juce::Justification::centredLeft);
+            g.drawText (midiNoteToName (root), W / 2 + 177, modeButtonY, 28, 22, juce::Justification::centredLeft);
 
             // Tuner: live pitch of input signal (left of the mode button)
             if (tunerResult.hasData)
@@ -979,25 +977,24 @@ void PluginEditor::resized()
     phraseButton.setBounds  (phCx  - swSize / 2, swY, swSize, swSize);
     engageButton.setBounds  (engCx - swSize / 2, swY, swSize, swSize);
 
-    // ── Rec controls (below REC footswitch) ──────────────────────────────────────
-    const int modeY = swY + swSize + juce::roundToInt (H * 0.055f);
-    {
-        const int belowSw = swY + swSize;
-        recLengthSlider.setBounds (recCx - 52, belowSw + juce::roundToInt (H * 0.055f), 104, 16);
-    }
+    // ── Sub-controls row: one item under each relevant footswitch ────────────────
+    // Positioned just below the footswitch sub-labels (~18px tall), no overlap.
+    const int subCtrlY = swY + swSize + 22;
+    recLengthSlider.setBounds  (recCx - 52,  subCtrlY, 104, 16);  // below REC
+    latchButton.setBounds      (phCx  - 28,  subCtrlY,  56, 22);  // below PHRASE — MIDI mode only
+    effectAdsrButton.setBounds (engCx - 28,  subCtrlY,  56, 22);  // below FREEZE — effect mode only
 
-    // ── MIDI utility row: [LATCH] [MIDI MODE] [ROOT slider / ADSR btn] ────────────
-    latchButton.setBounds      (W / 2 - 120, modeY, 56, 22);   // left of mode button — MIDI mode only
-    modeButton.setBounds       (W / 2 -  60, modeY, 120, 22);
-    effectAdsrButton.setBounds (W / 2 +  64, modeY,  56, 22);  // right of mode button — effect mode only
-    rootNoteSlider.setBounds   (W / 2 + 100, modeY,  70, 22);  // right of ROOT: label — MIDI mode only
+    // ── MIDI MODE button + root note slider (own row, below sub-controls) ────────
+    const int modeY = subCtrlY + 30;
+    modeButton.setBounds     (W / 2 - 60, modeY, 120, 22);
+    rootNoteSlider.setBounds (W / 2 + 94, modeY,  80, 22);  // MIDI mode only — ROOT: label at +64
 
     // ── ADSR row ─────────────────────────────────────────────────────────────────
     {
-        const int kw  = juce::roundToInt (W * 0.080f);
+        const int kw  = juce::roundToInt (W * 0.075f);
         const int gap = juce::roundToInt (W * 0.022f);
         const int rowX = (W - 4 * kw - 3 * gap) / 2;
-        const int rowY = modeY + 30;
+        const int rowY = modeY + 28;
         adsrAttackSlider .setBounds (rowX + 0 * (kw + gap), rowY, kw, kw);
         adsrDecaySlider  .setBounds (rowX + 1 * (kw + gap), rowY, kw, kw);
         adsrSustainSlider.setBounds (rowX + 2 * (kw + gap), rowY, kw, kw);
