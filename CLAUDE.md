@@ -209,7 +209,7 @@ Feature branch pushes trigger no CI — develop freely.
 
 **Release flow:**
 1. Merge feature branch → `main` (CI validates all platforms)
-2. `git tag v0.2.20 && git push --tags` → CI builds + creates GitHub Release automatically
+2. `git tag v0.2.22 && git push --tags` → CI builds + creates GitHub Release automatically
    - macOS: signed + notarized via CI (Developer ID Application cert, team 672HDMZ7DR)
    - All 5 GitHub secrets set: `CERTIFICATE_P12`, `CERTIFICATE_PASSWORD`, `DEVELOPER_ID_APPLICATION`, `NOTARIZATION_USERNAME`, `NOTARIZATION_PASSWORD`
 
@@ -219,29 +219,26 @@ Feature branch pushes trigger no CI — develop freely.
 
 ## What Remains
 
-### High priority (v0.3)
-- **SIMD** — ~~done~~: Pass 1 (blend) uses `FloatVectorOperations` (guaranteed SIMD); Pass 2 (formant) split into 3 sub-passes so energy reductions and gain application each auto-vectorise independently
-- **Parameter smoothing on preset load** — ~~done~~: `requestSnapSmoothers()` is called after `replaceState()` in all three paths (factory preset, user preset, DAW state restore); `snapSmoothers()` snaps all SmoothedValues on the next audio block
-- **Test coverage** — ~~done~~: `SpectralEngineTests.cpp` covers blend math, state management, waveform snapshot, scatter crossfade, MIDI voice steal (16 test cases, 163 872 assertions)
-- **AU validation** — ~~done~~: `auval -v aumf Frcd Amnt` passes clean (confirmed 0.2.5)
-
-### Medium priority
-- **Code signing / notarization** — ~~done~~: macOS builds are signed (Developer ID Application) and notarized via CI. Team ID 672HDMZ7DR. Entitlements: `com.apple.security.cs.allow-unsigned-executable-memory`. All 5 secrets configured in GitHub.
-- **Windows testing** — CI builds Windows VST3 but it has not been manually tested in a DAW
-- **Windows code signing** — Azure Trusted Signing workflow steps already in `build_and_test.yml`; secrets (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_ENDPOINT`, `AZURE_CODE_SIGNING_NAME`, `AZURE_CERT_PROFILE_NAME`) not yet configured
-- **Mono input handling** — ~~done~~: `isBusesLayoutSupported` accepts mono in + stereo out; `processBlock` upmixes ch 0 → ch 1 before engine processing
-- **Resizable window persistence** — ~~done~~: `savedEditorWidth/Height` saved in `getStateInformation`, restored in `setStateInformation`; editor reads them at construction via `setSize()`
+### Complete as of v0.2.22 (2026-03-27)
+Everything is shipped. Full feature list:
+- ~~SIMD~~: `FloatVectorOperations` (blend pass); formant pass split into 3 auto-vectorising sub-passes
+- ~~Parameter smoothing on preset load~~: `requestSnapSmoothers()` called after all `replaceState()` paths
+- ~~Test coverage~~: 16 test cases, 163 872 assertions (blend math, state, waveform, scatter, MIDI voice steal)
+- ~~AU validation~~: `auval -v aumf Frcd Amnt` passes clean
+- ~~macOS code signing + notarization~~: Developer ID Application, team 672HDMZ7DR, 5 CI secrets configured
+- ~~Windows VST3~~: CI builds, manually DAW-tested, code signed
+- ~~Mono input~~: `isBusesLayoutSupported` accepts mono in + stereo out; upmixed in processBlock
+- ~~Resizable window persistence~~: `savedEditorWidth/Height` in state I/O
+- ~~FootswitchButton~~: all 4 footswitches (REC, FREEZE, PHRASE, REVERSE)
+- ~~Slot indicators~~: A/B/C colors (active/has-data/empty) + dot in `paint()`
+- ~~Label layout at small sizes~~: `showSubs = (W >= 460)`
+- ~~Preset name display~~: `*` suffix when dirty
+- ~~dmg.json branding~~: FREECODER title, `freecoder.icns`
+- ~~Gumroad listing~~: `chrisament.gumroad.com/l/klogc`; all URLs updated
+- ~~Effect ADSR for PHRASE~~: phraseGain gated by adsrMult; noteOff suppressed while frozen (v0.2.22)
 
 ### Future / planned
-- **FL Studio instrument version** — a second CMake target with `IS_SYNTH TRUE` so FREECODER appears in FL Studio's instrument slots and receives MIDI directly without the Patcher workaround. Same codebase, different plugin type flag, separate bundle ID (e.g. `com.amentaudio.freecoder.instrument`) and display name ("FREECODER Instrument"). Not urgent.
-
-### Lower priority / polish
-- **FootswitchButton for PHRASE + REVERSE** — ~~done~~: all four footswitches are `FootswitchButton` instances
-- **Slot button indicator** — ~~done~~: `timerCallback` updates A/B/C button colors (bright green = active, dim green = has data, gray = empty); small painted dot below each button in `paint()`
-- **Label layout at small sizes** — ~~done~~: `showSubs = (W >= 460)` hides footswitch sub-labels below 460px
-- **Preset name display** — ~~done~~: preset name in header shows `*` suffix when `isDirty` is true
-- **dmg.json branding** — ~~done~~: updated to FREECODER title, `freecoder.icns`, correct file paths
-- **Gumroad listing** — ~~done~~: new product at `chrisament.gumroad.com/l/klogc`; all URLs in docs and README updated
+- **FL Studio instrument version** — second CMake target with `IS_SYNTH TRUE`; FREECODER appears in FL Studio instrument slots without Patcher workaround. Separate bundle ID (`com.amentaudio.freecoder.instrument`), display name "FREECODER Instrument". Not urgent.
 
 ---
 
