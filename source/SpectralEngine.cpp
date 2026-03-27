@@ -232,8 +232,8 @@ void SpectralEngine::setEngage (bool v) noexcept
     if (effectAdsrEnabled && !midiMode)
     {
         effectAdsr_.setParameters (adsrParams);
-        if (v && !effectAdsrOn) { effectAdsr_.noteOn();  effectAdsrOn = true;  }
-        if (!v && effectAdsrOn) { effectAdsr_.noteOff(); effectAdsrOn = false; }
+        if (v && !effectAdsrOn)               { effectAdsr_.noteOn();  effectAdsrOn = true;  }
+        if (!v && effectAdsrOn && !phraseEngaged) { effectAdsr_.noteOff(); effectAdsrOn = false; }
     }
     // OLA flush is deferred until the fade-out ramp completes in process()
 }
@@ -247,10 +247,16 @@ void SpectralEngine::setPhraseEngage (bool v) noexcept
     {
         phraseReadPosF   = (float) donorReadPos;  // start loop from current analysis position
         scatterFadeCount = 0;                     // clear any leftover crossfade
+
+        if (effectAdsrEnabled && !midiMode && !effectAdsrOn)
+            { effectAdsr_.setParameters (adsrParams); effectAdsr_.noteOn(); effectAdsrOn = true; }
     }
     else
     {
         scatterFadeCount = 0;
+
+        if (effectAdsrEnabled && !midiMode && effectAdsrOn && !donorFrozen)
+            { effectAdsr_.noteOff(); effectAdsrOn = false; }
 
         // Clear phrase formant OLA state so stale audio doesn't bleed into the next engage
         for (auto& cs : ch)
@@ -959,7 +965,7 @@ void SpectralEngine::process (juce::AudioBuffer<float>& buffer)
             const float adsrMult   = (effectAdsrEnabled && !midiMode)
                                          ? effectAdsr_.getNextSample() : 1.0f;
             const float freezeGain = engageGain.getNextValue() * adsrMult;
-            const float phraseGain = phraseEngageGain.getNextValue();
+            const float phraseGain = phraseEngageGain.getNextValue() * adsrMult;
             const float masterEnv  = std::max (freezeGain, phraseGain);
             const float rate   = std::pow (2.0f, pitch / 12.0f);
             const int   pos0   = (int) phraseReadPosF % donorLength;
