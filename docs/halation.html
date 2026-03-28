@@ -37,15 +37,7 @@
       overflow-x: hidden;
     }
 
-    /* ── Bloom background ───────────────────────────────── */
-    #bloom-bg {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    nav, header, main, footer { position: relative; z-index: 1; }
+    nav, header, main, footer { position: relative; }
 
     /* ── Nav ────────────────────────────────────────────── */
     .topnav {
@@ -424,8 +416,6 @@
 </head>
 <body>
 
-<canvas id="bloom-bg"></canvas>
-
 <nav class="topnav"><a href="index.html">&larr; Ament Audio</a></nav>
 
 <header>
@@ -563,64 +553,6 @@
   &copy; 2026 Ament Audio
 </footer>
 
-<script>
-  // Tie-dye radial bloom — slow breathing, HALATION palette
-  (function () {
-    const canvas = document.getElementById('bloom-bg');
-    const ctx    = canvas.getContext('2d');
-
-    const blooms = [
-      { x: 0.14, y: 0.18, r: 0.42, color: [232,168,74],  phase: 0.0  }, // amber
-      { x: 0.80, y: 0.10, r: 0.32, color: [196,112,122], phase: 1.1  }, // rose
-      { x: 0.92, y: 0.62, r: 0.30, color: [136,112,192], phase: 2.3  }, // violet
-      { x: 0.50, y: 0.88, r: 0.34, color: [74,164,184],  phase: 0.7  }, // teal
-      { x: 0.05, y: 0.72, r: 0.28, color: [212,106,48],  phase: 1.9  }, // orange
-      { x: 0.40, y: 0.44, r: 0.20, color: [176,80,144],  phase: 3.1  }, // magenta
-    ];
-
-    let t = 0;
-    let lastTs = null;
-
-    function resize() {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-
-    function draw(ts) {
-      if (lastTs !== null) t += (ts - lastTs) / 1000;
-      lastTs = ts;
-
-      const W = canvas.width;
-      const H = canvas.height;
-      ctx.clearRect(0, 0, W, H);
-
-      blooms.forEach(b => {
-        const pulse = 0.92 + 0.08 * Math.sin(t * 0.35 + b.phase);
-        const cx    = b.x * W;
-        const cy    = b.y * H;
-        const r     = b.r * Math.min(W, H) * pulse;
-        const [red, g, blue] = b.color;
-
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-        grad.addColorStop(0,    `rgba(${red},${g},${blue},0.14)`);
-        grad.addColorStop(0.30, `rgba(${red},${g},${blue},0.08)`);
-        grad.addColorStop(0.65, `rgba(${red},${g},${blue},0.025)`);
-        grad.addColorStop(1,    `rgba(${red},${g},${blue},0)`);
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      requestAnimationFrame(draw);
-    }
-
-    resize();
-    window.addEventListener('resize', resize);
-    requestAnimationFrame(draw);
-  })();
-</script>
 
 </body>
 </html>
