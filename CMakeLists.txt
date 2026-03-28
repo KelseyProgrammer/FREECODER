@@ -143,6 +143,13 @@ target_compile_definitions(SharedCode
     PRODUCT_NAME_WITHOUT_VERSION="FREECODER"
 )
 
+# Optional: build as a time-limited free trial (pass -DFREECODER_TRIAL=ON to cmake)
+option(FREECODER_TRIAL "Build as a 7-day free trial with purchase reminder" OFF)
+if (FREECODER_TRIAL)
+    target_compile_definitions(SharedCode INTERFACE FREECODER_TRIAL=1)
+    message(STATUS "Building FREECODER as FREE TRIAL (7-day reminder enabled)")
+endif()
+
 # Link to any other modules you added (with juce_add_module) here!
 # Usually JUCE modules must have PRIVATE visibility
 # See https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md#juce_add_module

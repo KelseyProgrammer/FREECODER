@@ -39,17 +39,31 @@ jobs:
       fail-fast: false # show all errors for each platform (vs. cancel jobs on error)
       matrix:
         include:
-          - name: Linux
+          - name: Linux-FreeTrial
             os: ubuntu-22.04
             pluginval-binary: ./pluginval
-            extra-flags: -G Ninja
-          - name: macOS
+            extra-flags: -G Ninja -DFREECODER_TRIAL=ON
+            artifact-suffix: -FreeTrial
+          - name: macOS-FreeTrial
+            os: macos-14
+            pluginval-binary: pluginval.app/Contents/MacOS/pluginval
+            extra-flags: -G Ninja -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DFREECODER_TRIAL=ON
+            artifact-suffix: -FreeTrial
+          - name: macOS-Full
             os: macos-14
             pluginval-binary: pluginval.app/Contents/MacOS/pluginval
             extra-flags: -G Ninja -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          - name: Windows
+            artifact-suffix: -Full
+          - name: Windows-FreeTrial
             os: windows-latest
             pluginval-binary: ./pluginval.exe
+            extra-flags: -DFREECODER_TRIAL=ON
+            artifact-suffix: -FreeTrial
+          - name: Windows-Full
+            os: windows-latest
+            pluginval-binary: ./pluginval.exe
+            extra-flags: ''
+            artifact-suffix: -Full
 
     steps:
       # Setup MSVC toolchain and developer command prompt (Windows)
@@ -114,7 +128,7 @@ jobs:
           echo "AUV3_PATH=$ARTIFACTS_PATH/AUv3/${{ env.PRODUCT_NAME }}.appex" >> $GITHUB_ENV
           echo "CLAP_PATH=$ARTIFACTS_PATH/CLAP/${{ env.PRODUCT_NAME }}.clap" >> $GITHUB_ENV
           echo "STANDALONE_PATH=$ARTIFACTS_PATH/Standalone/${{ env.PRODUCT_NAME }}.app" >> $GITHUB_ENV
-          echo "ARTIFACT_NAME=${{ env.PRODUCT_NAME }}-${{ env.VERSION }}-${{ runner.os }}" >> $GITHUB_ENV
+          echo "ARTIFACT_NAME=${{ env.PRODUCT_NAME }}-${{ env.VERSION }}-${{ runner.os }}${{ matrix.artifact-suffix }}" >> $GITHUB_ENV
 
       - name: Pluginval
         run: |
@@ -184,7 +198,7 @@ jobs:
         if: ${{ runner.os == 'Windows' }}
         run: |
           iscc "packaging\installer.iss"
-          mv "packaging/Output/${{ env.ARTIFACT_NAME }}.exe" "${{ env.ARTIFACTS_PATH }}/"
+          mv "packaging/Output/${{ env.PRODUCT_NAME }}-${{ env.VERSION }}-Windows.exe" "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.exe"
 
       - name: Codesign with Azure Trusted Signing
         if: ${{ runner.os == 'Windows' }}
@@ -240,12 +254,6 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}.exe
           path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.exe"
 
-      - name: Upload stable-name exe (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: FREECODER-Windows.exe
-          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.exe"
 
       - name: Upload Zip (Linux)
         if: ${{ runner.os == 'Linux' }}
@@ -261,12 +269,6 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}.zip
           path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.zip"
 
-      - name: Upload stable-name zip (macOS)
-        if: ${{ runner.os == 'macOS' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: FREECODER-macOS.zip
-          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.zip"
 
   release:
     if: contains(github.ref, 'tags/v')
