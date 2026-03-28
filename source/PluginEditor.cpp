@@ -1,4 +1,7 @@
 #include "PluginEditor.h"
+#ifdef FREECODER_TRIAL
+#include "TrialManager.h"
+#endif
 
 //==============================================================================
 // Pedal-inspired LookAndFeel — black + neon green
@@ -931,6 +934,48 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawText ("CH:" + juce::String (processorRef.diagInputChannels.load())
                 + " BS:" + juce::String (processorRef.diagBlockSize.load()),
                 W - 80, H - 16, 78, 14, juce::Justification::centredRight);
+
+#if FREECODER_TRIAL
+    // ── Trial expiry reminder ──────────────────────────────────────────────────
+    if (TrialManager::getInstance().isTrialExpired())
+    {
+        const float fT    = (float) H / 600.0f;
+        const float bW    = (float) W * 0.86f;
+        const float bH    = (float) H * 0.24f;
+        const float bX    = ((float) W - bW) * 0.5f;
+        const float bY    = ((float) H - bH) * 0.5f;
+
+        // Backdrop
+        g.setColour (juce::Colours::black.withAlpha (0.90f));
+        g.fillRoundedRectangle (bX, bY, bW, bH, 8.0f);
+        g.setColour (juce::Colour (0xff44ff44).withAlpha (0.55f));
+        g.drawRoundedRectangle (bX + 0.75f, bY + 0.75f, bW - 1.5f, bH - 1.5f, 8.0f, 1.5f);
+
+        // Headline
+        g.setColour (juce::Colour (0xff44ff44));
+        g.setFont (juce::FontOptions (22.0f * fT).withStyle ("Bold"));
+        g.drawText ("FREECODER  FREE  TRIAL",
+                    (int) bX, (int) bY + (int) (bH * 0.07f),
+                    (int) bW, (int) (bH * 0.30f),
+                    juce::Justification::centred);
+
+        // Body
+        g.setColour (juce::Colours::white.withAlpha (0.85f));
+        g.setFont (juce::FontOptions (13.0f * fT));
+        g.drawText ("Your 7-day trial has ended.  Enjoying FREECODER?",
+                    (int) bX, (int) (bY + bH * 0.40f),
+                    (int) bW, (int) (bH * 0.24f),
+                    juce::Justification::centred);
+
+        // CTA
+        g.setColour (juce::Colour (0xff44ff44));
+        g.setFont (juce::FontOptions (14.0f * fT).withStyle ("Bold"));
+        g.drawText ("Get the full version for $29  \xe2\x80\x94  amentaudio.com",
+                    (int) bX, (int) (bY + bH * 0.64f),
+                    (int) bW, (int) (bH * 0.28f),
+                    juce::Justification::centred);
+    }
+#endif
 }
 
 void PluginEditor::resized()
