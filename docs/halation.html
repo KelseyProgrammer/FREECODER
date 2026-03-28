@@ -579,13 +579,17 @@
     ];
 
     let t = 0;
+    let lastTs = null;
 
     function resize() {
       canvas.width  = window.innerWidth;
       canvas.height = window.innerHeight;
     }
 
-    function draw() {
+    function draw(ts) {
+      if (lastTs !== null) t += (ts - lastTs) / 1000;
+      lastTs = ts;
+
       const W = canvas.width;
       const H = canvas.height;
       ctx.clearRect(0, 0, W, H);
@@ -609,13 +613,12 @@
         ctx.fill();
       });
 
-      t += 0.016;
       requestAnimationFrame(draw);
     }
 
     resize();
     window.addEventListener('resize', resize);
-    draw();
+    requestAnimationFrame(draw);
   })();
 </script>
 
