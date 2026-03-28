@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HALATION — Feedback Pitch Ecosystem</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #12111a;
+      --amber:    #e8a84a;
+      --rose:     #c4707a;
+      --violet:   #8870c0;
+      --teal:     #4aa4b8;
+      --orange:   #d46a30;
+      --green:    #7a9e3a;
+      --magenta:  #b05090;
+      --blue:     #5a7ac4;
+      --muted:    #5a5070;
+      --muted2:   #6a5f7a;
+      --border:   rgba(200,160,80,0.13);
+      --text:     #ccc0b0;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* ── Bloom background ───────────────────────────────── */
+    #bloom-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav, header, main, footer { position: relative; z-index: 1; }
+
+    /* ── Nav ────────────────────────────────────────────── */
+    .topnav {
+      width: 100%;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+    }
+
+    .topnav a {
+      color: var(--muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.15s;
+    }
+
+    .topnav a:hover { color: var(--amber); }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      width: 100%;
+      padding: 52px 20px 40px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Space Mono', monospace;
+      font-size: 4rem;
+      font-weight: 700;
+      letter-spacing: 0.30em;
+      color: var(--amber);
+      text-shadow:
+        0 0 22px rgba(232,168,74,0.60),
+        0 0 70px rgba(232,168,74,0.22);
+    }
+
+    .tagline {
+      margin-top: 12px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.82rem;
+      letter-spacing: 0.20em;
+      color: var(--muted2);
+      text-transform: uppercase;
+    }
+
+    .by {
+      margin-top: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+    }
+
+    /* ── Main ───────────────────────────────────────────── */
+    main {
+      max-width: 720px;
+      width: 100%;
+      padding: 60px 20px;
+    }
+
+    /* ── Blurb ──────────────────────────────────────────── */
+    .blurb {
+      font-size: 1.02rem;
+      line-height: 1.82;
+      color: #b8a898;
+      margin-bottom: 52px;
+      font-weight: 300;
+    }
+
+    .blurb strong {
+      color: var(--amber);
+      font-weight: 500;
+    }
+
+    /* ── Section title ──────────────────────────────────── */
+    .section-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      color: var(--muted2);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      padding-left: 12px;
+      border-left: 2px solid var(--border);
+    }
+
+    /* ── Feature grid ───────────────────────────────────── */
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 56px;
+    }
+
+    .feature {
+      background: rgba(22, 18, 32, 0.70);
+      border-radius: 6px;
+      padding: 18px 20px;
+      border: 1px solid rgba(255,255,255,0.04);
+      border-left-width: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Each feature card gets one path color on its left border */
+    .f0 { border-left-color: var(--amber);   }
+    .f1 { border-left-color: var(--rose);    }
+    .f2 { border-left-color: var(--violet);  }
+    .f3 { border-left-color: var(--teal);    }
+    .f4 { border-left-color: var(--orange);  }
+    .f5 { border-left-color: var(--green);   }
+    .f6 { border-left-color: var(--magenta); }
+    .f7 { border-left-color: var(--blue);    }
+
+    .feature-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.70rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .f0 .feature-name { color: var(--amber);   }
+    .f1 .feature-name { color: var(--rose);    }
+    .f2 .feature-name { color: var(--violet);  }
+    .f3 .feature-name { color: var(--teal);    }
+    .f4 .feature-name { color: var(--orange);  }
+    .f5 .feature-name { color: var(--green);   }
+    .f6 .feature-name { color: var(--magenta); }
+    .f7 .feature-name { color: var(--blue);    }
+
+    .feature-desc {
+      font-size: 0.82rem;
+      color: var(--muted2);
+      line-height: 1.62;
+      font-weight: 300;
+    }
+
+    /* ── Use modes ──────────────────────────────────────── */
+    .modes {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 56px;
+    }
+
+    .mode {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      padding: 16px 20px;
+      background: rgba(22, 18, 32, 0.65);
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .mode-dial {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .mode-zero  .mode-dial { border-color: var(--teal);   color: var(--teal);   }
+    .mode-low   .mode-dial { border-color: var(--violet); color: var(--violet); }
+    .mode-high  .mode-dial { border-color: var(--rose);   color: var(--rose);   }
+
+    .mode-body {}
+
+    .mode-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .mode-zero  .mode-label { color: var(--teal);   }
+    .mode-low   .mode-label { color: var(--violet); }
+    .mode-high  .mode-label { color: var(--rose);   }
+
+    .mode-desc {
+      font-size: 0.82rem;
+      color: var(--muted2);
+      line-height: 1.60;
+      font-weight: 300;
+    }
+
+    /* ── Get It ─────────────────────────────────────────── */
+    .get-it { margin-bottom: 56px; }
+
+    .get-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 18px;
+      margin-bottom: 24px;
+    }
+
+    .get-panel {
+      background: rgba(22, 18, 32, 0.70);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 6px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .get-panel-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      color: var(--amber);
+      text-transform: uppercase;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 13px 24px;
+      border-radius: 4px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.10em;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: all 0.15s;
+      cursor: pointer;
+      white-space: nowrap;
+      width: 100%;
+      text-align: center;
+    }
+
+    .btn-amber {
+      background: var(--amber);
+      color: #12111a;
+      font-weight: 700;
+      border: none;
+    }
+
+    .btn-amber:hover {
+      background: #f0c070;
+      box-shadow: 0 0 28px rgba(232,168,74,0.45);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--amber);
+      border: 1px solid rgba(232,168,74,0.32);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--amber);
+      background: rgba(232,168,74,0.08);
+    }
+
+    .btn-soon {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid rgba(90,80,112,0.25);
+      cursor: default;
+      opacity: 0.55;
+      width: 100%;
+      text-align: center;
+    }
+
+    .testing-notice {
+      margin-top: 0;
+      padding: 14px 18px;
+      background: rgba(212,106,48,0.07);
+      border: 1px solid rgba(212,106,48,0.28);
+      border-radius: 4px;
+      font-size: 0.78rem;
+      color: var(--orange);
+      line-height: 1.65;
+    }
+
+    .testing-notice strong {
+      color: var(--amber);
+      font-weight: 500;
+    }
+
+    .install-note {
+      font-size: 0.78rem;
+      color: var(--muted2);
+      line-height: 1.75;
+      font-weight: 300;
+    }
+
+    .install-note strong {
+      color: var(--muted2);
+      font-weight: 500;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.70rem;
+    }
+
+    /* ── Specs ──────────────────────────────────────────── */
+    .specs { margin-bottom: 56px; }
+
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .spec-table tr { border-bottom: 1px solid rgba(200,160,80,0.07); }
+
+    .spec-table td {
+      padding: 10px 0;
+      color: var(--muted2);
+      font-weight: 300;
+    }
+
+    .spec-table td:first-child {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      width: 160px;
+    }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    footer {
+      width: 100%;
+      padding: 32px 20px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: #3a3050;
+      letter-spacing: 0.12em;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .social-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      transition: color 0.15s;
+    }
+
+    .social-links a:hover { color: var(--amber); }
+
+    footer a { color: #4a3f60; text-decoration: none; }
+    footer a:hover { color: var(--amber); }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 500px) {
+      .logo { font-size: 2.5rem; }
+      .features { grid-template-columns: 1fr; }
+      .get-panels { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bloom-bg"></canvas>
+
+<nav class="topnav"><a href="index.html">&larr; Ament Audio</a></nav>
+
+<header>
+  <div class="logo">HALATION</div>
+  <div class="tagline">Feedback Pitch Ecosystem</div>
+  <div class="by">by Ament Audio &nbsp;&middot;&nbsp; v0.0.3 &nbsp;&middot;&nbsp; VST3 &nbsp;&middot;&nbsp; AU &nbsp;&middot;&nbsp; macOS</div>
+</header>
+
+<main>
+
+  <p class="blurb">
+    Feed your signal into <strong>2–8 parallel pitch-shifted delay paths</strong>, each tuned
+    to a configurable interval and fed back into itself at a controlled rate. At zero feedback,
+    HALATION is a <strong>harmonically-rich doubler</strong> — stacked chords blooming outward
+    in time. Turn up the feedback and it becomes a <strong>living wall of sound</strong>, breathing
+    and sustaining on its own. Push further and the plugin becomes <strong>an instrument</strong> —
+    a self-generating ambient texture that evolves long after you've released the keys.<br><br>
+    Named after the photographic effect where light bleeds outward from its source.
+    The sound should feel exactly like that.
+  </p>
+
+  <!-- Use modes -->
+  <div class="section-title">One Knob, Three Worlds</div>
+  <div class="modes">
+    <div class="mode mode-zero">
+      <div class="mode-dial">Zero</div>
+      <div class="mode-body">
+        <div class="mode-label">Harmonic Doubler</div>
+        <div class="mode-desc">Zero feedback. Each path adds a pitch-shifted, time-staggered copy — chords bloom outward, nothing sustains beyond the input.</div>
+      </div>
+    </div>
+    <div class="mode mode-low">
+      <div class="mode-dial">Low</div>
+      <div class="mode-body">
+        <div class="mode-label">Living Sustain</div>
+        <div class="mode-desc">Low feedback. The harmonic cloud breathes and self-sustains, gently decaying. Each path has its own character.</div>
+      </div>
+    </div>
+    <div class="mode mode-high">
+      <div class="mode-dial">High</div>
+      <div class="mode-body">
+        <div class="mode-label">Generative Texture</div>
+        <div class="mode-desc">High feedback. The plugin becomes an instrument — a self-generating ambient texture that evolves independently of your input.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <div class="section-title">What it does</div>
+  <div class="features">
+    <div class="feature f0">
+      <div class="feature-name">Phase Vocoder Pitch Shift</div>
+      <div class="feature-desc">FFT-based pitch shifting per path — 2048-sample FFT, 75% overlap-add, Hann windowed. Smooth, musical transposition without artifacts.</div>
+    </div>
+    <div class="feature f1">
+      <div class="feature-name">2–8 Parallel Paths</div>
+      <div class="feature-desc">Each path runs an independent pitch-shifted delay with its own feedback loop. Add or remove paths without clicks or resets.</div>
+    </div>
+    <div class="feature f2">
+      <div class="feature-name">Interval Presets</div>
+      <div class="feature-desc">Fifths, Octaves, Harmonic Series, Chromatic, Unison — or dial in any interval manually per path. Snaps to Custom when you deviate.</div>
+    </div>
+    <div class="feature f3">
+      <div class="feature-name">Bloom Visualizer</div>
+      <div class="feature-desc">Radial canvas showing each active path as a bloom arm — length encodes interval, opacity follows level. Drag tips to tune intervals live.</div>
+    </div>
+    <div class="feature f4">
+      <div class="feature-name">Spectral Tilt</div>
+      <div class="feature-desc">Per-cycle brightness control in the feedback path. Positive = each repeat gets brighter. Negative = darker, warmer, tape-style decay.</div>
+    </div>
+    <div class="feature f5">
+      <div class="feature-name">Chaos / Drift</div>
+      <div class="feature-desc">Per-path slow LFO (0.1–0.5 Hz) that offsets pitch by ±15 cents, phase-staggered across voices. Organic, living intonation.</div>
+    </div>
+    <div class="feature f6">
+      <div class="feature-name">Stagger</div>
+      <div class="feature-desc">Delay offset between paths (20–180 ms at full stagger). Spreads arrivals in time, turning chords into slow blooms.</div>
+    </div>
+    <div class="feature f7">
+      <div class="feature-name">DC Blocking + Damping</div>
+      <div class="feature-desc">1-pole highpass at 10 Hz kills DC buildup in long feedback tails. Damping adds a gentle LP per cycle for analog warmth.</div>
+    </div>
+  </div>
+
+  <!-- Get It -->
+  <div class="get-it">
+    <div class="section-title">Get It</div>
+    <div class="get-panels">
+      <div class="get-panel">
+        <div class="get-panel-title">BUY &mdash; $19</div>
+        <span class="btn btn-soon">Coming Soon</span>
+      </div>
+      <div class="get-panel">
+        <div class="get-panel-title">Free Trial</div>
+        <span class="btn btn-soon">Coming Soon</span>
+      </div>
+    </div>
+
+    <div class="testing-notice">
+      <strong>v0.0.3 is currently in validation.</strong><br>
+      Release pending full CI test suite (Linux &middot; macOS &middot; Windows) and
+      AU validation (<code>auval -v aufx Hala AmnA</code>). Download links will appear here once tests pass.
+      Watch the <a href="https://github.com/KelseyProgrammer/HALATION" style="color:var(--amber);opacity:0.8;">GitHub repo</a> for release notifications.
+    </div>
+  </div>
+
+  <!-- Specs -->
+  <div class="specs">
+    <div class="section-title">Specs</div>
+    <table class="spec-table">
+      <tr><td>Formats</td><td>VST3 &middot; AU (macOS)</td></tr>
+      <tr><td>Plugin type</td><td>Stereo Effect</td></tr>
+      <tr><td>I/O</td><td>Stereo in &rarr; Stereo out</td></tr>
+      <tr><td>Paths</td><td>2–8 parallel pitch-shifted delay paths</td></tr>
+      <tr><td>Pitch engine</td><td>Phase vocoder &middot; 2048-pt FFT &middot; 75% overlap &middot; Hann window</td></tr>
+      <tr><td>Latency</td><td>~46 ms (2048 samples @ 44.1 kHz), reported to host</td></tr>
+      <tr><td>Stagger range</td><td>20–180 ms path arrival spread</td></tr>
+      <tr><td>Feedback</td><td>Single-path self-feedback, DC-blocked, spectrally tiltable</td></tr>
+      <tr><td>Requires</td><td>macOS 10.13+ &middot; 64-bit DAW</td></tr>
+      <tr><td>Price</td><td>$19</td></tr>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  <div class="social-links">
+    <a href="https://www.youtube.com/@AmentAudio" target="_blank" rel="noopener">YouTube</a>
+    <a href="https://www.instagram.com/amentaudio/" target="_blank" rel="noopener">Instagram</a>
+    <a href="https://www.reddit.com/user/AmentAudio/" target="_blank" rel="noopener">Reddit</a>
+    <a href="https://github.com/KelseyProgrammer/HALATION" target="_blank" rel="noopener">GitHub</a>
+  </div>
+  <a href="index.html">&larr; Ament Audio</a>
+  &nbsp;&middot;&nbsp;
+  &copy; 2026 Ament Audio
+</footer>
+
+<script>
+  // Tie-dye radial bloom — slow breathing, HALATION palette
+  (function () {
+    const canvas = document.getElementById('bloom-bg');
+    const ctx    = canvas.getContext('2d');
+
+    const blooms = [
+      { x: 0.14, y: 0.18, r: 0.42, color: [232,168,74],  phase: 0.0  }, // amber
+      { x: 0.80, y: 0.10, r: 0.32, color: [196,112,122], phase: 1.1  }, // rose
+      { x: 0.92, y: 0.62, r: 0.30, color: [136,112,192], phase: 2.3  }, // violet
+      { x: 0.50, y: 0.88, r: 0.34, color: [74,164,184],  phase: 0.7  }, // teal
+      { x: 0.05, y: 0.72, r: 0.28, color: [212,106,48],  phase: 1.9  }, // orange
+      { x: 0.40, y: 0.44, r: 0.20, color: [176,80,144],  phase: 3.1  }, // magenta
+    ];
+
+    let t = 0;
+
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    function draw() {
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      blooms.forEach(b => {
+        const pulse = 0.92 + 0.08 * Math.sin(t * 0.35 + b.phase);
+        const cx    = b.x * W;
+        const cy    = b.y * H;
+        const r     = b.r * Math.min(W, H) * pulse;
+        const [red, g, blue] = b.color;
+
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0,    `rgba(${red},${g},${blue},0.14)`);
+        grad.addColorStop(0.30, `rgba(${red},${g},${blue},0.08)`);
+        grad.addColorStop(0.65, `rgba(${red},${g},${blue},0.025)`);
+        grad.addColorStop(1,    `rgba(${red},${g},${blue},0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      t += 0.016;
+      requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    draw();
+  })();
+</script>
+
+</body>
+</html>
