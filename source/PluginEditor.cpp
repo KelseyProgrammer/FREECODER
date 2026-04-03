@@ -4,45 +4,89 @@
 #endif
 
 //==============================================================================
-// Pedal-inspired LookAndFeel — black + neon green
+// Hyperrealistic LookAndFeel — obsidian charcoal + bioluminescent jade-emerald
 //==============================================================================
 class FreecoderLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
-    // Horizontal strip slider (MORPH / DRY-WET)
+    const juce::Image& getKnobImage() const
+    {
+        if (! knobImage.isValid())
+        {
+            auto full = juce::ImageCache::getFromMemory (BinaryData::knobs_png, BinaryData::knobs_pngSize);
+            if (full.isValid())
+                knobImage = full.getClippedImage ({ 0, 0, full.getWidth(), full.getWidth() });
+        }
+        return knobImage;
+    }
+
+private:
+    mutable juce::Image knobImage;
+
+public:
+    // Horizontal strip slider (MORPH / DRY-WET) — chamfered rail groove
     void drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPos, float, float,
                            juce::Slider::SliderStyle, juce::Slider&) override
     {
-        const float cy = y + height * 0.5f;
-        const float th = 5.0f;
+        const float cy  = y + height * 0.5f;
+        const float th  = 6.0f;
+        const float cr  = 3.0f;
+        const auto  jade = juce::Colour (0xff3dffaa);
 
-        // Track background
-        juce::ColourGradient trackBg (juce::Colour (0xff0d200d), (float) x, cy,
-                                       juce::Colour (0xff071407), (float) (x + width), cy, false);
-        g.setGradientFill (trackBg);
-        g.fillRoundedRectangle ((float) x, cy - th * 0.5f, (float) width, th, 2.5f);
+        // ── Outer groove shadow (chamfer depth) ──────────────────────────────
+        g.setColour (juce::Colours::black.withAlpha (0.68f));
+        g.fillRoundedRectangle ((float) x, cy - th * 0.5f - 1.2f, (float) width, th + 2.4f, cr + 1.2f);
 
-        // Active fill
-        juce::ColourGradient fill (juce::Colour (0xff1a8a1a), (float) x, cy,
-                                    juce::Colour (0xff44ff44), sliderPos, cy, false);
-        g.setGradientFill (fill);
-        g.fillRoundedRectangle ((float) x, cy - th * 0.5f, sliderPos - (float) x, th, 2.5f);
-
-        // Thumb
-        const float tw = 12.0f, th2 = 26.0f;
+        // ── Track body (deep machined groove) ────────────────────────────────
         {
-            juce::ColourGradient thumb (juce::Colour (0xff5fff5f), sliderPos - tw * 0.4f, cy - th2 * 0.4f,
-                                         juce::Colour (0xff1a8a1a), sliderPos + tw * 0.4f, cy + th2 * 0.4f, false);
-            g.setGradientFill (thumb);
-            g.fillRoundedRectangle (sliderPos - tw * 0.5f, cy - th2 * 0.5f, tw, th2, 3.5f);
+            juce::ColourGradient trackBg (
+                juce::Colour (0xff0a1420), (float) x, cy - th * 0.5f,
+                juce::Colour (0xff05090e), (float) x, cy + th * 0.5f, false);
+            g.setGradientFill (trackBg);
+            g.fillRoundedRectangle ((float) x, cy - th * 0.5f, (float) width, th, cr);
         }
-        // Thumb specular
-        g.setColour (juce::Colours::white.withAlpha (0.18f));
-        g.fillRoundedRectangle (sliderPos - tw * 0.5f + 2.5f, cy - th2 * 0.5f + 3.0f, tw - 5.0f, th2 * 0.32f, 2.0f);
+
+        // ── Chamfer inner highlight (top-edge catch) ─────────────────────────
+        g.setColour (juce::Colours::white.withAlpha (0.045f));
+        g.drawLine ((float) x + cr, cy - th * 0.5f + 0.6f, (float) (x + width) - cr, cy - th * 0.5f + 0.6f, 0.7f);
+
+        // ── Active fill (jade gradient) ───────────────────────────────────────
+        if (sliderPos > (float) x + 2.0f)
+        {
+            juce::ColourGradient fill (
+                juce::Colour (0xff1a5a3a), (float) x, cy,
+                jade, sliderPos, cy, false);
+            g.setGradientFill (fill);
+            g.fillRoundedRectangle ((float) x, cy - th * 0.5f, sliderPos - (float) x, th, cr);
+
+            // ── Fill edge bloom ───────────────────────────────────────────────
+            g.setColour (jade.withAlpha (0.38f));
+            g.fillRoundedRectangle (sliderPos - 4.0f, cy - th * 0.5f - 1.2f, 8.0f, th + 2.4f, cr + 1.0f);
+        }
+
+        // ── Thumb (precision-machined anodized slug) ──────────────────────────
+        {
+            const float tw = 10.0f, th2 = 26.0f;
+            // Drop shadow
+            g.setColour (juce::Colours::black.withAlpha (0.72f));
+            g.fillRoundedRectangle (sliderPos - tw * 0.5f + 1.2f, cy - th2 * 0.5f + 2.5f, tw, th2, 4.0f);
+            // Body
+            juce::ColourGradient thumb (
+                juce::Colour (0xff464656), sliderPos - tw * 0.35f, cy - th2 * 0.35f,
+                juce::Colour (0xff1e1e2a), sliderPos + tw * 0.35f, cy + th2 * 0.35f, false);
+            g.setGradientFill (thumb);
+            g.fillRoundedRectangle (sliderPos - tw * 0.5f, cy - th2 * 0.5f, tw, th2, 4.0f);
+            // Edge chamfer highlight
+            g.setColour (juce::Colours::white.withAlpha (0.24f));
+            g.fillRoundedRectangle (sliderPos - tw * 0.5f + 2.0f, cy - th2 * 0.5f + 3.0f, tw - 4.0f, th2 * 0.26f, 2.5f);
+            // Jade centre-line indicator
+            g.setColour (jade.withAlpha (0.85f));
+            g.fillRoundedRectangle (sliderPos - 1.2f, cy - th2 * 0.22f, 2.4f, th2 * 0.44f, 1.2f);
+        }
     }
 
-    // Pad slider — 3D circular knob (Serum / FabFilter style)
+    // Rotary knob — image-based knob using knobs.png asset, rotated by value
     void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
                            float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle,
                            juce::Slider& slider) override
@@ -50,91 +94,104 @@ public:
         const float prop   = sliderPosProportional;
         const float cx     = (float) x + (float) width  * 0.5f;
         const float cy     = (float) y + (float) height * 0.5f;
-        const float outerR = juce::jmin ((float) width, (float) height) * 0.5f - 3.0f;
-        const float arcThk = outerR * 0.175f;
-        const float bodyR  = outerR - arcThk - 3.0f;
-        const float innerR = bodyR * 0.76f;
+        const float outerR = juce::jmin ((float) width, (float) height) * 0.5f - 2.0f;
+        const float arcThk = outerR * 0.11f;
+        const float skirtR = outerR - arcThk - 1.5f;
+        const float faceR  = skirtR * 0.64f;
+        const auto  jade   = juce::Colour (0xff3dffaa);
+        const float arcR   = outerR - arcThk * 0.5f;
+        const float angle  = rotaryStartAngle + prop * (rotaryEndAngle - rotaryStartAngle);
 
-        // ── Arc track ─────────────────────────────────────────────────────
-        const float arcR = outerR - arcThk * 0.5f;
+        // ── Arc track ─────────────────────────────────────────────────────────
         {
             juce::Path track;
             track.addCentredArc (cx, cy, arcR, arcR, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-            g.setColour (juce::Colour (0xff1c1c1c));
+            g.setColour (juce::Colour (0xff14141e));
             g.strokePath (track, juce::PathStrokeType (arcThk,
                           juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        // ── Value arc ─────────────────────────────────────────────────────
-        const float angle = rotaryStartAngle + prop * (rotaryEndAngle - rotaryStartAngle);
+        // ── Value arc with bloom ───────────────────────────────────────────────
         if (prop > 0.004f)
         {
+            juce::Path bloom;
+            bloom.addCentredArc (cx, cy, arcR, arcR, 0.0f, rotaryStartAngle, angle, true);
+            g.setColour (jade.withAlpha (prop * 0.28f));
+            g.strokePath (bloom, juce::PathStrokeType (arcThk + 5.0f,
+                          juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
             juce::Path val;
             val.addCentredArc (cx, cy, arcR, arcR, 0.0f, rotaryStartAngle, angle, true);
-            g.setColour (juce::Colour (0xff44ff44));
+            g.setColour (jade.withAlpha (0.92f));
             g.strokePath (val, juce::PathStrokeType (arcThk,
                           juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         }
 
-        // ── Outer glow ─────────────────────────────────────────────────────
-        if (prop > 0.01f)
+        // ── Knob body — static image, rotating indicator drawn on top ───────────
+        const auto& img = getKnobImage();
+
+        // Drop shadow
+        g.setColour (juce::Colours::black.withAlpha (0.75f));
+        g.fillEllipse (cx - skirtR + 2.0f, cy - skirtR + 4.0f, skirtR * 2.0f, skirtR * 2.0f);
+
+        if (img.isValid())
         {
-            g.setColour (juce::Colour (0xff44ff44).withAlpha (prop * 0.10f));
-            g.fillEllipse (cx - outerR - 2, cy - outerR - 2, (outerR + 2) * 2, (outerR + 2) * 2);
+            g.saveState();
+            juce::Path clip;
+            clip.addEllipse (cx - skirtR, cy - skirtR, skirtR * 2.0f, skirtR * 2.0f);
+            g.reduceClipRegion (clip);
+
+            // Draw the image static — rotation is shown by the indicator below
+            const float scale = (skirtR * 2.0f) / (float) img.getWidth();
+            g.drawImageTransformed (img,
+                juce::AffineTransform::scale (scale).translated (cx - skirtR, cy - skirtR), false);
+
+            g.restoreState();
+        }
+        else
+        {
+            // Fallback procedural body
+            juce::ColourGradient sk (juce::Colour (0xff303040), cx - skirtR * 0.35f, cy - skirtR * 0.55f,
+                                     juce::Colour (0xff0d0d18), cx + skirtR * 0.45f, cy + skirtR * 0.45f, true);
+            g.setGradientFill (sk);
+            g.fillEllipse (cx - skirtR, cy - skirtR, skirtR * 2.0f, skirtR * 2.0f);
+            juce::ColourGradient fc (juce::Colour (0xff22223a), cx, cy - faceR * 0.55f,
+                                     juce::Colour (0xff09090f), cx, cy + faceR * 0.55f, false);
+            g.setGradientFill (fc);
+            g.fillEllipse (cx - faceR, cy - faceR, faceR * 2.0f, faceR * 2.0f);
         }
 
-        // ── Drop shadow ────────────────────────────────────────────────────
-        g.setColour (juce::Colours::black.withAlpha (0.65f));
-        g.fillEllipse (cx - bodyR + 2, cy - bodyR + 3, bodyR * 2, bodyR * 2);
-
-        // ── Knob body (radial gradient, dark center, lighter edge) ─────────
+        // ── Rotating indicator — jade LED dot + etched line ───────────────────
         {
-            juce::ColourGradient grad (
-                juce::Colour (0xff2a2a2a), cx - bodyR * 0.35f, cy - bodyR * 0.35f,
-                juce::Colour (0xff0d0d0d), cx + bodyR * 0.55f, cy + bodyR * 0.55f,
-                true);
-            g.setGradientFill (grad);
-            g.fillEllipse (cx - bodyR, cy - bodyR, bodyR * 2, bodyR * 2);
+            const float pa   = angle - juce::MathConstants<float>::halfPi;
+            const float pIn  = faceR * 0.28f;
+            const float pOut = faceR * 0.76f;
+            const float tipX = cx + std::cos (pa) * pOut;
+            const float tipY = cy + std::sin (pa) * pOut;
+            const float dotR = juce::jmax (2.2f, faceR * 0.14f);
+
+            // Indicator line — shadow then white etched
+            g.setColour (juce::Colours::black.withAlpha (0.55f));
+            g.drawLine (cx + std::cos (pa) * pIn  + 0.5f, cy + std::sin (pa) * pIn  + 0.5f,
+                        tipX + 0.5f, tipY + 0.5f, 1.6f);
+            g.setColour (juce::Colours::white.withAlpha (0.82f));
+            g.drawLine (cx + std::cos (pa) * pIn,  cy + std::sin (pa) * pIn,
+                        tipX, tipY, 1.6f);
+
+            // Outer glow around the LED dot
+            g.setColour (jade.withAlpha (0.38f));
+            g.fillEllipse (tipX - dotR * 2.2f, tipY - dotR * 2.2f, dotR * 4.4f, dotR * 4.4f);
+
+            // LED dot body — bright jade
+            juce::ColourGradient dot (juce::Colours::white.withAlpha (0.95f),
+                                      tipX - dotR * 0.25f, tipY - dotR * 0.40f,
+                                      jade, tipX + dotR * 0.25f, tipY + dotR * 0.40f, false);
+            g.setGradientFill (dot);
+            g.fillEllipse (tipX - dotR, tipY - dotR, dotR * 2.0f, dotR * 2.0f);
         }
 
-        // ── Inner face (recessed look) ─────────────────────────────────────
-        {
-            juce::ColourGradient inner (
-                juce::Colour (0xff1d1d1d), cx, cy - innerR * 0.55f,
-                juce::Colour (0xff090909), cx, cy + innerR * 0.55f,
-                false);
-            g.setGradientFill (inner);
-            g.fillEllipse (cx - innerR, cy - innerR, innerR * 2, innerR * 2);
-        }
-
-        // ── Outer ring ─────────────────────────────────────────────────────
-        g.setColour (juce::Colour (0xff444444));
-        g.drawEllipse (cx - bodyR, cy - bodyR, bodyR * 2, bodyR * 2, 1.2f);
-
-        // ── Specular highlight ─────────────────────────────────────────────
-        {
-            juce::ColourGradient spec (
-                juce::Colours::white.withAlpha (0.20f), cx - bodyR * 0.2f, cy - bodyR * 0.62f,
-                juce::Colours::white.withAlpha (0.0f),  cx + bodyR * 0.1f, cy - bodyR * 0.1f,
-                false);
-            g.setGradientFill (spec);
-            g.fillEllipse (cx - bodyR * 0.55f, cy - bodyR * 0.74f, bodyR * 0.68f, bodyR * 0.42f);
-        }
-
-        // ── Pointer dot ────────────────────────────────────────────────────
-        {
-            const float pa  = angle - juce::MathConstants<float>::halfPi;
-            const float pr  = innerR * 0.60f;
-            const float dotSize = juce::jmax (5.0f, bodyR * 0.22f);
-            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.85f + prop * 0.15f));
-            g.fillEllipse (cx + std::cos (pa) * pr - dotSize * 0.5f,
-                           cy + std::sin (pa) * pr - dotSize * 0.5f,
-                           dotSize, dotSize);
-        }
-
-        // ── Value text ────────────────────────────────────────────────────
-        g.setColour (juce::Colour (0xff44ff44).withAlpha (0.80f));
-        g.setFont (juce::FontOptions (9.0f).withStyle ("Bold"));
+        // ── Value text — drawn over knob face ──────────────────────────────────
+        g.setColour (jade.withAlpha (0.60f));
+        g.setFont (juce::FontOptions (juce::jmax (7.0f, faceR * 0.36f)).withStyle ("Bold"));
         juce::String valStr;
         if (slider.getMaximum() > 1.0)
         {
@@ -146,8 +203,8 @@ public:
             valStr = juce::String ((int) (prop * 100)) + "%";
         }
         g.drawText (valStr,
-                    (int) (cx - innerR), (int) (cy - 7),
-                    (int) (innerR * 2), 14,
+                    (int) (cx - faceR), (int) (cy - faceR * 0.32f),
+                    (int) (faceR * 2.0f), (int) (faceR * 0.64f),
                     juce::Justification::centred);
     }
 
@@ -165,10 +222,10 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     // ── Preset strip ────────────────────────────────────────────────────────
     for (auto* btn : { &prevPresetButton, &nextPresetButton, &savePresetButton })
     {
-        btn->setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff0a1a0a));
-        btn->setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
-        btn->setColour (juce::TextButton::textColourOffId, juce::Colour (0xff44ff44));
-        btn->setColour (juce::TextButton::textColourOnId,  juce::Colour (0xff44ff44));
+        btn->setColour (juce::TextButton::buttonColourId,  juce::Colour (0xff0a1420));
+        btn->setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a4a38));
+        btn->setColour (juce::TextButton::textColourOffId, juce::Colour (0xff3dffaa));
+        btn->setColour (juce::TextButton::textColourOnId,  juce::Colour (0xff3dffaa));
         addAndMakeVisible (btn);
     }
     prevPresetButton.onClick = [this] { presetManager.previousPreset(); isDirty = false; repaint(); };
@@ -209,71 +266,71 @@ PluginEditor::PluginEditor (PluginProcessor& p)
 
     // ── MIDI mode controls ──────────────────────────────────────────────────
     modeButton.setClickingTogglesState (true);
-    modeButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
-    modeButton.setColour (juce::TextButton::buttonOnColourId,  juce::Colour (0xff0a2a2a));
-    modeButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff44ff44));
-    modeButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ffff));
+    modeButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1420));
+    modeButton.setColour (juce::TextButton::buttonOnColourId,  juce::Colour (0xff0a1e28));
+    modeButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff3dffaa));
+    modeButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ffee));
     addAndMakeVisible (modeButton);
 
     rootNoteSlider.setRange (0.0, 127.0, 1.0);
     rootNoteSlider.setSliderStyle (juce::Slider::LinearHorizontal);
     rootNoteSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    rootNoteSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a2a2a));
-    rootNoteSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff44ffff));
-    rootNoteSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080808));
+    rootNoteSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a1e28));
+    rootNoteSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff44ffee));
+    rootNoteSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080810));
     rootNoteSlider.setVisible (false);   // shown only in MIDI mode — timerCallback toggles
     addAndMakeVisible (rootNoteSlider);
 
     // Latch button
     latchButton.setClickingTogglesState (true);
-    latchButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
-    latchButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff0a2a2a));
-    latchButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
-    latchButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ffff));
+    latchButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1420));
+    latchButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff0a1e28));
+    latchButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff484860));
+    latchButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ffee));
     latchButton.setVisible (false);   // shown only in MIDI mode
     addAndMakeVisible (latchButton);
 
     // Donor slot buttons
     for (int i = 0; i < SpectralEngine::kNumDonorSlots; ++i)
     {
-        slotButtons[i]->setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
-        slotButtons[i]->setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
-        slotButtons[i]->setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
-        slotButtons[i]->setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
+        slotButtons[i]->setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1420));
+        slotButtons[i]->setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a4a38));
+        slotButtons[i]->setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff484860));
+        slotButtons[i]->setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff3dffaa));
         slotButtons[i]->onClick = [this, i] { processorRef.requestSlot (i); };
         addAndMakeVisible (slotButtons[i]);
     }
 
     // Export donor to WAV
-    exportButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a0a1a));
-    exportButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a1a5a));
-    exportButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff4466ff));
+    exportButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1020));
+    exportButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff141a38));
+    exportButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff5580ff));
     exportButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff88aaff));
     exportButton.onClick = [this] { processorRef.exportActiveDonorSlotToWav(); };
     addAndMakeVisible (exportButton);
 
     // Import donor from file
-    importButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a0a1a));
-    importButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a1a5a));
-    importButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff4466ff));
+    importButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1020));
+    importButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff141a38));
+    importButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff5580ff));
     importButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff88aaff));
     importButton.onClick = [this] { processorRef.importDonorFromFile(); };
     addAndMakeVisible (importButton);
 
     // Effect ADSR toggle
     effectAdsrButton.setClickingTogglesState (true);
-    effectAdsrButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1a0a));
-    effectAdsrButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a5a1a));
-    effectAdsrButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff444444));
-    effectAdsrButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff44ff44));
+    effectAdsrButton.setColour (juce::TextButton::buttonColourId,   juce::Colour (0xff0a1420));
+    effectAdsrButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xff1a4a38));
+    effectAdsrButton.setColour (juce::TextButton::textColourOffId,  juce::Colour (0xff484860));
+    effectAdsrButton.setColour (juce::TextButton::textColourOnId,   juce::Colour (0xff3dffaa));
     addAndMakeVisible (effectAdsrButton);
 
     // Rec length: stepped 1/2/3/5s, drawn as labelled ticks in paint()
     recLengthSlider.setRange (1.0, 5.0, 1.0);
     recLengthSlider.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    recLengthSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a2a0a));
-    recLengthSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff44ff44));
-    recLengthSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080808));
+    recLengthSlider.setColour (juce::Slider::trackColourId,      juce::Colour (0xff0a1e18));
+    recLengthSlider.setColour (juce::Slider::thumbColourId,      juce::Colour (0xff3dffaa));
+    recLengthSlider.setColour (juce::Slider::backgroundColourId, juce::Colour (0xff080810));
     addAndMakeVisible (recLengthSlider);
 
     // ADSR knobs — same look as the pad knobs, hidden until MIDI mode is on
@@ -322,6 +379,11 @@ void PluginEditor::valueTreePropertyChanged (juce::ValueTree&, const juce::Ident
 
 void PluginEditor::timerCallback()
 {
+    // Advance slow ambient breath cycle (~4 sec period at 15 Hz)
+    breathPhase += 0.026f;
+    if (breathPhase > juce::MathConstants<float>::twoPi)
+        breathPhase -= juce::MathConstants<float>::twoPi;
+
     const float newLevel = processorRef.getDonorFillLevel();
     if (std::abs (newLevel - donorFillLevel) > 0.001f)
         donorFillLevel = newLevel;
@@ -353,13 +415,13 @@ void PluginEditor::timerCallback()
         const bool isActive  = (i == activeSlot);
         const bool hasData   = processorRef.donorSlotHasData (i);
         slotButtons[i]->setColour (juce::TextButton::textColourOffId,
-                                   isActive  ? juce::Colour (0xff44ff44) :
-                                   hasData   ? juce::Colour (0xff00cc00) :
-                                               juce::Colour (0xff666666));
+                                   isActive  ? juce::Colour (0xff3dffaa) :
+                                   hasData   ? juce::Colour (0xff1ab87a) :
+                                               juce::Colour (0xff484860));
         slotButtons[i]->setColour (juce::TextButton::buttonColourId,
-                                   isActive  ? juce::Colour (0xff0d2a0d) :
-                                   hasData   ? juce::Colour (0xff081408) :
-                                               juce::Colour (0xff0a0a0a));
+                                   isActive  ? juce::Colour (0xff0d2a1e) :
+                                   hasData   ? juce::Colour (0xff081410) :
+                                               juce::Colour (0xff0a0a12));
     }
 }
 
@@ -371,14 +433,20 @@ static juce::String midiNoteToName (int note)
     return juce::String (names[note % 12]) + juce::String (note / 12 - 1);
 }
 
-// Horizontal brushed-metal scan lines — replaces dot grid
+// Fine obsidian grain — organic micro-texture, not harsh scan lines
 static void drawFaceplateTexture (juce::Graphics& g, juce::Rectangle<int> area)
 {
-    for (int y = area.getY(); y < area.getBottom(); y += 3)
+    for (int yy = area.getY(); yy < area.getBottom(); yy += 2)
     {
-        const float a = (y % 9 == 0) ? 0.022f : 0.009f;
+        const float a = (yy % 8 == 0) ? 0.020f : (yy % 4 == 0) ? 0.012f : 0.005f;
         g.setColour (juce::Colours::white.withAlpha (a));
-        g.drawHorizontalLine (y, (float) area.getX(), (float) area.getRight());
+        g.drawHorizontalLine (yy, (float) area.getX(), (float) area.getRight());
+    }
+    // Subtle vertical grain variation (adds depth/directionality to the material)
+    for (int xx = area.getX(); xx < area.getRight(); xx += 5)
+    {
+        g.setColour (juce::Colours::black.withAlpha (0.010f));
+        g.drawVerticalLine (xx, (float) area.getY(), (float) area.getBottom());
     }
 }
 
@@ -428,14 +496,44 @@ void PluginEditor::paint (juce::Graphics& g)
     const int contentY = headerH + presetH;
     const float fS = juce::jlimit (0.85f, 1.4f, (float) W / 540.0f);
 
-    // ── Background (vertical gradient) ──────────────────────────────────────
+    // ── Background — deep obsidian charcoal ──────────────────────────────────
     {
-        juce::ColourGradient bg (juce::Colour (0xff131313), 0.0f, 0.0f,
-                                  juce::Colour (0xff080808), 0.0f, (float) H, false);
+        juce::ColourGradient bg (juce::Colour (0xff111116), 0.0f, 0.0f,
+                                  juce::Colour (0xff08080e), 0.0f, (float) H, false);
         g.setGradientFill (bg);
         g.fillAll();
     }
     drawFaceplateTexture (g, { 0, contentY, W, H - contentY });
+
+    // ── Animated ambient jade breath — pulses gently behind the display ────
+    {
+        const float breath  = 0.5f + 0.5f * std::sin (breathPhase);   // 0→1
+        const float breathA = 0.04f + breath * 0.05f;                 // 0.04–0.09
+        const float cx = (float) W * 0.5f;
+        const float cy = (float) H * 0.52f;
+        juce::ColourGradient glow (
+            juce::Colour (0xff3dffaa).withAlpha (breathA), cx, cy,
+            juce::Colour (0xff3dffaa).withAlpha (0.0f), cx, cy + (float) H * 0.42f, false);
+        g.setGradientFill (glow);
+        g.fillEllipse (cx - (float) W * 0.55f, cy - (float) H * 0.25f,
+                       (float) W * 1.10f, (float) H * 0.60f);
+    }
+
+    // ── Corner vignette — dark edges pull focus to centre ─────────────────
+    {
+        // Left
+        juce::ColourGradient vL (juce::Colours::black.withAlpha (0.45f), 0, 0,
+                                  juce::Colours::black.withAlpha (0.0f), (float) W * 0.18f, 0, false);
+        g.setGradientFill (vL); g.fillRect (0, 0, W, H);
+        // Right
+        juce::ColourGradient vR (juce::Colours::black.withAlpha (0.45f), (float) W, 0,
+                                  juce::Colours::black.withAlpha (0.0f), (float) W * 0.82f, 0, false);
+        g.setGradientFill (vR); g.fillRect (0, 0, W, H);
+        // Bottom
+        juce::ColourGradient vB (juce::Colours::black.withAlpha (0.55f), 0, (float) H,
+                                  juce::Colours::black.withAlpha (0.0f), 0, (float) H * 0.78f, false);
+        g.setGradientFill (vB); g.fillRect (0, 0, W, H);
+    }
 
     // Corner screws (4 corners — classic pedal enclosure look)
     const float screwR  = 7.0f;
@@ -445,31 +543,39 @@ void PluginEditor::paint (juce::Graphics& g)
     drawScrew (g, screwM,       (float)H - screwM, screwR);
     drawScrew (g, (float)W - screwM, (float)H - screwM, screwR);
 
-    // ── Header panel ────────────────────────────────────────────────────────
+    // ── Header panel — premium obsidian slab ─────────────────────────────────
     {
-        juce::ColourGradient hdr (juce::Colour (0xff1e1e1e), 0.0f, 0.0f,
-                                   juce::Colour (0xff111111), 0.0f, 68.0f, false);
+        juce::ColourGradient hdr (juce::Colour (0xff1c1c24), 0.0f, 0.0f,
+                                   juce::Colour (0xff10101a), 0.0f, 68.0f, false);
         g.setGradientFill (hdr);
         g.fillRect (0, 0, W, headerH);
     }
-    // Thin green separator
-    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.45f));
+    // Jade separator line — refined glow
+    g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.38f));
     g.drawLine (0.0f, (float)(headerH - 1), (float) W, (float)(headerH - 1), 1.0f);
+    g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.12f));
+    g.drawLine (0.0f, (float)(headerH - 2), (float) W, (float)(headerH - 2), 1.0f);
     // Subtle inner highlight at top
-    g.setColour (juce::Colours::white.withAlpha (0.04f));
+    g.setColour (juce::Colours::white.withAlpha (0.05f));
     g.drawLine (0.0f, 1.0f, (float) W, 1.0f, 1.0f);
 
-    // Green indicator LED
+    // Jade indicator LED with bloom
     {
         const float lx = 42.0f, ly = 14.0f, lr = 7.0f;
-        // Glow
-        g.setColour (juce::Colour (0xff44ff44).withAlpha (0.18f));
-        g.fillEllipse (lx - lr - 3, ly - lr - 3, (lr + 3) * 2, (lr + 3) * 2);
+        // Outer bloom
+        g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.14f));
+        g.fillEllipse (lx - lr - 5, ly - lr - 5, (lr + 5) * 2, (lr + 5) * 2);
+        // Inner glow
+        g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.22f));
+        g.fillEllipse (lx - lr - 2, ly - lr - 2, (lr + 2) * 2, (lr + 2) * 2);
         // Body
-        juce::ColourGradient led (juce::Colour (0xff88ff88), lx - lr * 0.3f, ly - lr * 0.3f,
-                                   juce::Colour (0xff22cc22), lx + lr * 0.3f, ly + lr * 0.3f, true);
+        juce::ColourGradient led (juce::Colour (0xff8fffd8), lx - lr * 0.3f, ly - lr * 0.3f,
+                                   juce::Colour (0xff1ab87a), lx + lr * 0.3f, ly + lr * 0.3f, true);
         g.setGradientFill (led);
         g.fillEllipse (lx - lr, ly - lr, lr * 2, lr * 2);
+        // LED specular
+        g.setColour (juce::Colours::white.withAlpha (0.50f));
+        g.fillEllipse (lx - lr * 0.35f, ly - lr * 0.60f, lr * 0.48f, lr * 0.34f);
     }
 
     // Wordmark — SVG logo (falls back to text if not loaded)
@@ -497,17 +603,17 @@ void PluginEditor::paint (juce::Graphics& g)
     }
 
     // Branding (top-right)
-    g.setColour (juce::Colour (0xff333333));
+    g.setColour (juce::Colour (0xff3a3a50));
     g.setFont (juce::FontOptions (7.5f * fS));
     g.drawText ("AMENT  |  AUDIO", W - 112, 52, 104, 12, juce::Justification::centredRight);
 
-    // ── Preset strip ────────────────────────────────────────────────────────
-    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.15f));
+    // ── Preset strip ─────────────────────────────────────────────────────────
+    g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.09f));
     g.fillRect (0, headerH, W, presetH);
-    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.20f));
+    g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.18f));
     g.drawLine (0.0f, (float) contentY, (float) W, (float) contentY, 1.0f);
 
-    g.setColour (juce::Colour (0xff44ff44));
+    g.setColour (juce::Colour (0xff3dffaa));
     g.setFont (juce::FontOptions (12.0f * fS).withStyle ("Bold"));
     const juce::String presetLabel = presetManager.getCurrentPresetName() + (isDirty ? " *" : "");
     g.drawText (presetLabel, 52, headerH + 5, W - 160, 26, juce::Justification::centred);
@@ -519,24 +625,24 @@ void PluginEditor::paint (juce::Graphics& g)
     // MORPH label row: "< PHRASE" left · "MORPH" centre · "SPECTRAL >" right — one line
     const int labelRowY = morphSlider.getY() - 20;
     g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
-    g.setColour (juce::Colour (0xff666666));
+    g.setColour (juce::Colour (0xff585870));
     g.drawText ("< PHRASE",   mX, labelRowY, mW, 18, juce::Justification::centredLeft);
-    g.setColour (juce::Colour (0xffcccccc));
+    g.setColour (juce::Colour (0xffc8ccd8));
     g.drawText ("MORPH",      mX, labelRowY, mW, 18, juce::Justification::centred);
-    g.setColour (juce::Colour (0xff666666));
+    g.setColour (juce::Colour (0xff585870));
     g.drawText ("SPECTRAL >", mX, labelRowY, mW, 18, juce::Justification::centredRight);
 
     // DRY / WET label
-    g.setColour (juce::Colour (0xffcccccc));
+    g.setColour (juce::Colour (0xffc8ccd8));
     g.drawText ("DRY / WET", dX, drywetSlider.getY() - 20, dW, 18, juce::Justification::centredRight);
 
     // Value readouts — centred under each slider
-    g.setColour (juce::Colour (0xff44ff44));
+    g.setColour (juce::Colour (0xff3dffaa));
     g.drawText (juce::String (morphSlider.getValue(),  2), mX, morphSlider.getBottom() + 4,  mW, 16, juce::Justification::centred);
     g.drawText (juce::String (drywetSlider.getValue(), 2), dX, drywetSlider.getBottom() + 4, dW, 16, juce::Justification::centred);
 
     // ── Pad labels — centred below each knob (industry standard) ────────────
-    g.setColour (juce::Colour (0xffaaaaaa));
+    g.setColour (juce::Colour (0xffa0a4b4));
     g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
     const int lblGap = 3;
     const int lblH   = juce::roundToInt (16.0f * fS);
@@ -545,26 +651,26 @@ void PluginEditor::paint (juce::Graphics& g)
     g.drawText ("FORMANT", formantSlider.getX(), formantSlider.getBottom() + lblGap, formantSlider.getWidth(), lblH, juce::Justification::centred);
     g.drawText ("PITCH",   pitchSlider.getX(),   pitchSlider.getBottom()   + lblGap, pitchSlider.getWidth(),   lblH, juce::Justification::centred);
 
-    // ── Centre display (sunken LCD panel look) ───────────────────────────────
-    // Outer shadow bevel
-    g.setColour (juce::Colours::black.withAlpha (0.60f));
-    g.fillRoundedRectangle (displayBounds.expanded (2).toFloat(), 9.0f);
-    // Panel body
+    // ── Centre display — deep obsidian glass panel ────────────────────────────
+    // Outer shadow (depth)
+    g.setColour (juce::Colours::black.withAlpha (0.70f));
+    g.fillRoundedRectangle (displayBounds.expanded (3).toFloat(), 10.0f);
+    // Panel body — slightly blue-tinted dark for glass-like depth
     {
         juce::ColourGradient panel (
-            juce::Colour (0xff050a05), (float) displayBounds.getX(), (float) displayBounds.getY(),
-            juce::Colour (0xff030703), (float) displayBounds.getX(), (float) displayBounds.getBottom(), false);
+            juce::Colour (0xff060c18), (float) displayBounds.getX(), (float) displayBounds.getY(),
+            juce::Colour (0xff030810), (float) displayBounds.getX(), (float) displayBounds.getBottom(), false);
         g.setGradientFill (panel);
         g.fillRoundedRectangle (displayBounds.toFloat(), 8.0f);
     }
-    // Inner highlight (top edge — light catches the inset lip)
-    g.setColour (juce::Colour (0xff44ff44).withAlpha (0.18f));
+    // Inner jade rim glow (looking through glass into light)
+    g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.16f));
     g.drawRoundedRectangle (displayBounds.toFloat().reduced (0.5f), 8.0f, 1.0f);
-    g.setColour (juce::Colour (0xff1a441a));
+    g.setColour (juce::Colour (0xff1a5a3a));
     g.drawRoundedRectangle (displayBounds.toFloat(), 8.0f, 1.5f);
 
     // "DONOR" label
-    g.setColour (juce::Colour (0xff2a7a2a));
+    g.setColour (juce::Colour (0xff1a6a48));
     g.setFont (juce::FontOptions (9.0f * fS).withStyle ("Bold"));
     g.drawText ("DONOR",
                 displayBounds.getX(), displayBounds.getY() + 6,
@@ -594,21 +700,21 @@ void PluginEditor::paint (juce::Graphics& g)
         };
 
         // ── dB grid lines (subtle horizontal guides) ────────────────────────
-        g.setColour (juce::Colour (0xff1a2a1a));
+        g.setColour (juce::Colour (0xff122a22));
         for (float db : { -12.0f, -24.0f, -36.0f, -48.0f })
         {
             const float norm = juce::jlimit (0.0f, 1.0f, (db + 60.0f) / 60.0f);
             const float gy   = botY - norm * bh;
             g.drawHorizontalLine (juce::roundToInt (gy), bx, bx + bw);
-            g.setColour (juce::Colour (0xff223322));
+            g.setColour (juce::Colour (0xff1a4a34));
             g.setFont (juce::FontOptions (7.0f * fS));
             g.drawText (juce::String ((int) db) + "dB", (int) bx + 2, (int) gy - 8, 32, 8, juce::Justification::centredLeft);
-            g.setColour (juce::Colour (0xff1a2a1a));
+            g.setColour (juce::Colour (0xff122a22));
         }
 
         if (spectrumSnapshot.hasData)
         {
-            // ── Donor spectrum (filled green) ──────────────────────────────
+            // ── Donor spectrum — layered jade with additive depth ──────────
             juce::Path donorPath;
             donorPath.startNewSubPath (bx, botY);
             for (int i = 0; i < nBins; ++i)
@@ -619,12 +725,20 @@ void PluginEditor::paint (juce::Graphics& g)
             donorPath.lineTo (bx + bw, botY);
             donorPath.closeSubPath();
 
-            g.setColour (juce::Colour (0xff163d16));
+            // Deep base fill
+            g.setColour (juce::Colour (0xff0d3325));
             g.fillPath (donorPath);
-            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.75f));
+            // Mid layer — soft additive transparency giving depth
+            g.setColour (juce::Colour (0xff1a5a3a).withAlpha (0.55f));
+            g.fillPath (donorPath);
+            // Glowing edge stroke
+            g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.72f));
             g.strokePath (donorPath, juce::PathStrokeType (1.0f));
+            // Bloom over the stroke
+            g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.12f));
+            g.strokePath (donorPath, juce::PathStrokeType (3.5f));
 
-            // ── Live input spectrum (white outline) ────────────────────────
+            // ── Live input spectrum — cool white outline ────────────────────
             juce::Path inputPath;
             inputPath.startNewSubPath (bx, magToY (spectrumSnapshot.inputMag[0]));
             for (int i = 1; i < nBins; ++i)
@@ -632,13 +746,13 @@ void PluginEditor::paint (juce::Graphics& g)
                 const float px = bx + (float) i / (float) nBins * bw;
                 inputPath.lineTo (px, magToY (spectrumSnapshot.inputMag[(size_t) i]));
             }
-            g.setColour (juce::Colours::white.withAlpha (0.40f));
+            g.setColour (juce::Colours::white.withAlpha (0.35f));
             g.strokePath (inputPath, juce::PathStrokeType (1.5f));
         }
         else
         {
             // No donor yet — workflow hint
-            g.setColour (juce::Colour (0xff2a5a2a));
+            g.setColour (juce::Colour (0xff1a5a3a).withAlpha (0.70f));
             g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
             g.drawText ("TAP  REC  TO  CAPTURE  A  DONOR", specArea.toFloat(), juce::Justification::centred);
         }
@@ -647,7 +761,7 @@ void PluginEditor::paint (juce::Graphics& g)
         const bool isRecording = processorRef.apvts.getRawParameterValue ("recTrigger")->load() > 0.5f;
         if (isRecording || donorFillLevel > 0.001f)
         {
-            g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff44ff44));
+            g.setColour (isRecording ? juce::Colour (0xffff4040) : juce::Colour (0xff3dffaa));
             g.setFont (juce::FontOptions (11.0f * fS).withStyle ("Bold"));
             g.drawText (juce::String ((int) (donorFillLevel * 100)) + "%",
                         specArea.getRight() - 36, specArea.getY(), 34, 14,
@@ -656,7 +770,7 @@ void PluginEditor::paint (juce::Graphics& g)
 
         // ── Waveform overview ────────────────────────────────────────────────
         // Thin separator between spectrum and waveform
-        g.setColour (juce::Colour (0xff1a3d1a));
+        g.setColour (juce::Colour (0xff1a4a34));
         g.drawHorizontalLine (splitY, (float) fullArea.getX(), (float) fullArea.getRight());
 
         {
@@ -687,24 +801,31 @@ void PluginEditor::paint (juce::Graphics& g)
                 }
                 wavePath.closeSubPath();
 
-                g.setColour (juce::Colour (0xff163d16));
+                // Deep jade base fill
+                g.setColour (juce::Colour (0xff0d3325));
                 g.fillPath (wavePath);
-                g.setColour (juce::Colour (0xff44ff44).withAlpha (0.6f));
+                // Mid-layer additive fill for depth
+                g.setColour (juce::Colour (0xff165040).withAlpha (0.50f));
+                g.fillPath (wavePath);
+                // Glowing edge
+                g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.62f));
                 g.strokePath (wavePath, juce::PathStrokeType (1.0f));
 
-                // Playhead — white vertical bar when phrase is engaged
+                // Playhead — jade-tinted vertical bar when phrase is engaged
                 const bool phraseOn = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
                 if (phraseOn)
                 {
                     const float phX = wx + juce::jlimit (0.0f, 1.0f, waveformSnapshot.playhead) * ww;
-                    g.setColour (juce::Colours::white.withAlpha (0.75f));
+                    g.setColour (juce::Colours::white.withAlpha (0.80f));
                     g.drawLine (phX, wy, phX, wy + wh, 1.5f);
+                    g.setColour (juce::Colour (0xff3dffaa).withAlpha (0.25f));
+                    g.drawLine (phX, wy, phX, wy + wh, 4.0f);
                 }
             }
             else
             {
                 // No donor yet — dim placeholder
-                g.setColour (juce::Colour (0xff0a1a0a));
+                g.setColour (juce::Colour (0xff060e14));
                 g.fillRect (waveArea);
             }
         }
@@ -712,12 +833,12 @@ void PluginEditor::paint (juce::Graphics& g)
 
     // Fill bar at bottom of display
     auto barArea = displayBounds.withTrimmedTop (displayBounds.getHeight() - 18).reduced (10, 4);
-    g.setColour (juce::Colour (0xff0a2a0a));
+    g.setColour (juce::Colour (0xff0a1820));
     g.fillRoundedRectangle (barArea.toFloat(), 3.0f);
     if (donorFillLevel > 0.001f)
     {
         auto filled = barArea.withWidth ((int) (barArea.getWidth() * donorFillLevel));
-        g.setColour (donorFillLevel >= 1.0f ? juce::Colours::red : juce::Colour (0xff44ff44));
+        g.setColour (donorFillLevel >= 1.0f ? juce::Colours::red : juce::Colour (0xff3dffaa));
         g.fillRoundedRectangle (filled.toFloat(), 3.0f);
     }
 
@@ -732,9 +853,9 @@ void PluginEditor::paint (juce::Graphics& g)
             const float dotR  = 2.5f;
             const float dotCx = (float) sb.getCentreX();
             const float dotY  = (float) sb.getBottom() + 2.0f;
-            g.setColour (isActive  ? juce::Colour (0xff44ff44)
-                        : hasData  ? juce::Colour (0xff00aa00).withAlpha (0.8f)
-                                   : juce::Colour (0xff222222));
+            g.setColour (isActive  ? juce::Colour (0xff3dffaa)
+                        : hasData  ? juce::Colour (0xff1ab87a).withAlpha (0.8f)
+                                   : juce::Colour (0xff242432));
             g.fillEllipse (dotCx - dotR, dotY, dotR * 2.0f, dotR * 2.0f);
         }
     }
@@ -742,9 +863,9 @@ void PluginEditor::paint (juce::Graphics& g)
     // ── Section divider above footswitch row ─────────────────────────────────
     {
         const int sepY = recButton.getY() - juce::roundToInt (H * 0.022f);
-        g.setColour (juce::Colour (0xff2a4a2a));
+        g.setColour (juce::Colour (0xff1a4a34));
         g.drawHorizontalLine (sepY, 16.0f, (float)(W - 16));
-        g.setColour (juce::Colour (0xff1a2a1a));
+        g.setColour (juce::Colour (0xff0e2820));
         g.drawHorizontalLine (sepY + 1, 16.0f, (float)(W - 16));
     }
 
@@ -760,12 +881,12 @@ void PluginEditor::paint (juce::Graphics& g)
     const bool showSubs = (W >= 460);
 
     // REC label + sublabel
-    g.setColour (juce::Colours::white);
+    g.setColour (juce::Colour (0xffc8ccd8));
     g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
     g.drawText ("REC", recCx_p - 50, recBot + 4, 100, 18, juce::Justification::centred);
     if (showSubs)
     {
-        g.setColour (juce::Colour (0xff888888));
+        g.setColour (juce::Colour (0xff787898));
         g.setFont (juce::FontOptions (11.0f * fS));
         g.drawText ("CAPTURE DONOR", recCx_p - juce::roundToInt (W * 0.10f), recBot + 24, juce::roundToInt (W * 0.20f), 18, juce::Justification::centred);
     }
@@ -773,12 +894,12 @@ void PluginEditor::paint (juce::Graphics& g)
     // REVERSE label + sublabel
     {
         const bool isReversed = processorRef.apvts.getRawParameterValue ("reverse")->load() > 0.5f;
-        g.setColour (isReversed ? juce::Colour (0xff44ff44) : juce::Colours::white);
+        g.setColour (isReversed ? juce::Colour (0xff3dffaa) : juce::Colour (0xffc8ccd8));
         g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
         g.drawText ("REV", revCx_p - 50, revBot + 4, 100, 18, juce::Justification::centred);
         if (showSubs)
         {
-            g.setColour (juce::Colour (0xff888888));
+            g.setColour (juce::Colour (0xff787898));
             g.setFont (juce::FontOptions (11.0f * fS));
             g.drawText ("REVERSE LOOP", revCx_p - juce::roundToInt (W * 0.10f), revBot + 24, juce::roundToInt (W * 0.20f), 18, juce::Justification::centred);
         }
@@ -788,12 +909,12 @@ void PluginEditor::paint (juce::Graphics& g)
     {
         const bool isMidiForPh = processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f;
         const bool isPhrased   = processorRef.apvts.getRawParameterValue ("phraseEngage")->load() > 0.5f;
-        g.setColour (isPhrased ? juce::Colour (0xff44ff44) : juce::Colours::white);
+        g.setColour (isPhrased ? juce::Colour (0xff3dffaa) : juce::Colour (0xffc8ccd8));
         g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
         g.drawText ("PHRASE", phCx_p - 50, phBot + 4, 100, 18, juce::Justification::centred);
         if (showSubs)
         {
-            g.setColour (juce::Colour (0xff888888));
+            g.setColour (juce::Colour (0xff787898));
             g.setFont (juce::FontOptions (11.0f * fS));
             g.drawText (isMidiForPh ? "LATCH NOTES" : "PHRASE LOOP", phCx_p - juce::roundToInt (W * 0.10f), phBot + 24, juce::roundToInt (W * 0.20f), 18, juce::Justification::centred);
         }
@@ -802,12 +923,12 @@ void PluginEditor::paint (juce::Graphics& g)
     // FREEZE label + sublabel
     {
         const bool isEngaged = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
-        g.setColour (isEngaged ? juce::Colour (0xff44ff44) : juce::Colours::white);
+        g.setColour (isEngaged ? juce::Colour (0xff3dffaa) : juce::Colour (0xffc8ccd8));
         g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
         g.drawText ("FREEZE", engCx_p - 55, engBot + 4, 110, 18, juce::Justification::centred);
         if (showSubs)
         {
-            g.setColour (juce::Colour (0xff888888));
+            g.setColour (juce::Colour (0xff787898));
             g.setFont (juce::FontOptions (11.0f * fS));
             g.drawText ("SPECTRAL FREEZE", engCx_p - juce::roundToInt (W * 0.11f), engBot + 24, juce::roundToInt (W * 0.22f), 18, juce::Justification::centred);
         }
@@ -828,14 +949,14 @@ void PluginEditor::paint (juce::Graphics& g)
         {
             const int tx = sliderX + (int) (stops[t] * sliderW);
             const bool isCurrent = (std::abs (vals[t] - recSecs) < 0.1f);
-            g.setColour (isCurrent ? juce::Colour (0xff44ff44) : juce::Colour (0xff666666));
+            g.setColour (isCurrent ? juce::Colour (0xff3dffaa) : juce::Colour (0xff585870));
             g.drawText (labels[t], tx - 12, labelY, 24, 16, juce::Justification::centred);
         }
 
         // LATCH sub-label
         if (processorRef.apvts.getRawParameterValue ("midiMode")->load() > 0.5f)
         {
-            g.setColour (juce::Colour (0xff444444));
+            g.setColour (juce::Colour (0xff484860));
             g.setFont (juce::FontOptions (8.0f * fS));
             g.drawText ("LATCH", latchButton.getX(), latchButton.getBottom() + 2,
                         latchButton.getWidth(), 10, juce::Justification::centred);
@@ -854,16 +975,16 @@ void PluginEditor::paint (juce::Graphics& g)
         {
             // Root note: "ROOT:" label, then slider, then live note name
             const int root = (int) processorRef.apvts.getRawParameterValue ("rootNote")->load();
-            g.setColour (juce::Colour (0xff44ffff));
+            g.setColour (juce::Colour (0xff44ffee));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
             // "ROOT" floats above the slider; note name sits to its right
             const int sx = rootNoteSlider.getX();
             const int sy = rootNoteSlider.getY();
             const int sw = rootNoteSlider.getWidth();
-            g.setColour (juce::Colour (0xff44ffff).withAlpha (0.65f));
+            g.setColour (juce::Colour (0xff44ffee).withAlpha (0.60f));
             g.setFont (juce::FontOptions (8.5f * fS).withStyle ("Bold"));
             g.drawText ("ROOT", sx, sy - 13, sw, 12, juce::Justification::centred);
-            g.setColour (juce::Colour (0xff44ffff));
+            g.setColour (juce::Colour (0xff44ffee));
             g.setFont (juce::FontOptions (10.0f * fS).withStyle ("Bold"));
             g.drawText (midiNoteToName (root), sx + sw + 4, sy, 34, 22, juce::Justification::centredLeft);
 
@@ -885,7 +1006,7 @@ void PluginEditor::paint (juce::Graphics& g)
             }
 
             // ADSR letters below each knob (MIDI mode)
-            g.setColour (juce::Colour (0xff44ff44));
+            g.setColour (juce::Colour (0xff3dffaa));
             g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
             const int labelY = adsrAttackSlider.getBottom() + 2;
             static const char* labels[] = { "A", "D", "S", "R" };
@@ -900,7 +1021,7 @@ void PluginEditor::paint (juce::Graphics& g)
             const bool showEffAdsr = processorRef.apvts.getRawParameterValue ("effectAdsr")->load() > 0.5f;
             if (showEffAdsr)
             {
-                g.setColour (juce::Colour (0xff44ff44));
+                g.setColour (juce::Colour (0xff3dffaa));
                 g.setFont (juce::FontOptions (13.0f * fS).withStyle ("Bold"));
                 const int labelY = adsrAttackSlider.getBottom() + 2;
                 static const char* effLabels[] = { "A", "D", "S", "R" };
@@ -911,7 +1032,7 @@ void PluginEditor::paint (juce::Graphics& g)
             }
 
             // effectAdsrButton label
-            g.setColour (showEffAdsr ? juce::Colour (0xff44ff44) : juce::Colour (0xff555555));
+            g.setColour (showEffAdsr ? juce::Colour (0xff3dffaa) : juce::Colour (0xff484860));
             g.setFont (juce::FontOptions (7.0f * fS));
             g.drawText ("ENV SHAPE", effectAdsrButton.getX() - 6, effectAdsrButton.getBottom() + 2,
                         effectAdsrButton.getWidth() + 12, 10, juce::Justification::centred);
@@ -919,18 +1040,18 @@ void PluginEditor::paint (juce::Graphics& g)
     }
 
     // ── Bottom branding + diagnostics ──────────────────────────────────────────
-    g.setColour (juce::Colour (0xff2a2a2a));
+    g.setColour (juce::Colour (0xff303045));
     g.setFont (juce::FontOptions (8.0f * fS));
-    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 2 0", 0, H - 16, W - 120, 14, juce::Justification::centred);
+    g.drawText ("A M E N T  A U D I O  |  F R E E C O D E R  v 0 . 2 . 2 2", 0, H - 16, W - 120, 14, juce::Justification::centred);
 
     // Diagnostic readout: actual engine state (not params — params lag real state)
     const bool isRec    = processorRef.isDonorRecording();
     const bool hasDonor = processorRef.getDonorLength() > 0;
     const bool engOn    = processorRef.apvts.getRawParameterValue ("engage")->load() > 0.5f;
     juce::String stateStr = juce::String (isRec ? "REC " : (hasDonor ? "READY " : "")) + (engOn ? "ENG" : "");
-    g.setColour (stateStr.isNotEmpty() ? juce::Colour (0xff44ff44) : juce::Colour (0xff222222));
+    g.setColour (stateStr.isNotEmpty() ? juce::Colour (0xff3dffaa) : juce::Colour (0xff242432));
     g.drawText (stateStr, 4, H - 16, 80, 14, juce::Justification::centredLeft);
-    g.setColour (juce::Colour (0xff333333));
+    g.setColour (juce::Colour (0xff303045));
     g.drawText ("CH:" + juce::String (processorRef.diagInputChannels.load())
                 + " BS:" + juce::String (processorRef.diagBlockSize.load()),
                 W - 80, H - 16, 78, 14, juce::Justification::centredRight);
@@ -1036,8 +1157,9 @@ void PluginEditor::resized()
     }
 
     // ── Footswitches (4-button row: REC / REVERSE / PHRASE / FREEZE) ─────────────
-    const int swSize = juce::roundToInt (juce::jmin (W * 0.130f, H * 0.118f));  // ~70
-    const int swY    = pad2Y + padTotalH + juce::roundToInt (H * 0.030f);
+    // Sized to match the parameter knob diameter for visual consistency
+    const int swSize = juce::roundToInt (juce::jmin (W * 0.148f, H * 0.133f));  // ~80 at 540×600
+    const int swY    = pad2Y + padTotalH + juce::roundToInt (H * 0.026f);
     const int recCx  = W / 5;
     const int revCx  = W * 2 / 5;
     const int phCx   = W * 3 / 5;

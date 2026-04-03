@@ -77,8 +77,8 @@ public:
     void importDonorFromFile();
 
     // Editor window size persistence (message thread only)
-    int savedEditorWidth  = 540;
-    int savedEditorHeight = 600;
+    int savedEditorWidth  = 560;
+    int savedEditorHeight = 640;
     void setEditorSize (int w, int h) { savedEditorWidth = w; savedEditorHeight = h; }
 
     // Diagnostics — read by editor, written by audio thread

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <BinaryData.h>
 
 //==============================================================================
-// FootswitchButton — self-painting rubber-dome footswitch toggle
-// Owns its own paintButton() so no external LookAndFeel override is needed.
+// FootswitchButton — same photorealistic knob image as the parameter knobs,
+// with a prominent jade LED that glows when the toggle is active.
 //==============================================================================
 class FootswitchButton : public juce::Button
 {
@@ -17,78 +18,138 @@ public:
 protected:
     void paintButton (juce::Graphics& g, bool, bool isDown) override
     {
-        auto b  = getLocalBounds().toFloat().reduced (4.0f);
-        float cx = b.getCentreX(), cy = b.getCentreY();
-        float r  = juce::jmin (b.getWidth(), b.getHeight()) * 0.5f;
-        const bool lit = getToggleState();
+        auto b      = getLocalBounds().toFloat().reduced (3.0f);
+        const float cx     = b.getCentreX();
+        const float cy     = b.getCentreY();
+        const float skirtR = juce::jmin (b.getWidth(), b.getHeight()) * 0.5f;
+        const float faceR  = skirtR * 0.62f;
+        const bool  lit    = getToggleState();
+        const auto  jade   = juce::Colour (0xff3dffaa);
 
-        // Ambient glow when engaged
+        // ── Outer ambient bloom when active ───────────────────────────────────
         if (lit)
         {
-            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.13f));
-            g.fillEllipse (cx - r - 6, cy - r - 6, (r + 6) * 2, (r + 6) * 2);
+            g.setColour (jade.withAlpha (0.20f));
+            g.fillEllipse (cx - skirtR - 9, cy - skirtR - 9, (skirtR + 9) * 2, (skirtR + 9) * 2);
+            g.setColour (jade.withAlpha (0.07f));
+            g.fillEllipse (cx - skirtR - 18, cy - skirtR - 18, (skirtR + 18) * 2, (skirtR + 18) * 2);
         }
 
-        // Drop shadow
-        g.setColour (juce::Colours::black.withAlpha (0.70f));
-        g.fillEllipse (cx - r + 2, cy - r + 4, r * 2, r * 2);
+        // ── Drop shadow ───────────────────────────────────────────────────────
+        g.setColour (juce::Colours::black.withAlpha (0.80f));
+        g.fillEllipse (cx - skirtR + 2, cy - skirtR + 5, skirtR * 2, skirtR * 2);
 
-        // Bevelled outer metal ring
+        // ── Knob image body (same asset as parameter knobs) ───────────────────
+        const auto& img = getKnobImage();
+        if (img.isValid())
         {
-            juce::ColourGradient ring (
-                juce::Colour (0xff555555), cx - r * 0.45f, cy - r * 0.75f,
-                juce::Colour (0xff181818), cx + r * 0.35f, cy + r * 0.65f, false);
-            g.setGradientFill (ring);
-            g.fillEllipse (cx - r, cy - r, r * 2, r * 2);
+            g.saveState();
+            juce::Path clip;
+            clip.addEllipse (cx - skirtR, cy - skirtR, skirtR * 2, skirtR * 2);
+            g.reduceClipRegion (clip);
+
+            const float scale = (skirtR * 2.0f) / (float) img.getWidth();
+            g.drawImageTransformed (img,
+                juce::AffineTransform::scale (scale).translated (cx - skirtR, cy - skirtR), false);
+
+            // Jade face wash when active
+            if (lit)
+            {
+                juce::ColourGradient wash (
+                    jade.withAlpha (0.18f), cx, cy - faceR,
+                    jade.withAlpha (0.06f), cx, cy + faceR * 0.8f, false);
+                g.setGradientFill (wash);
+                g.fillEllipse (cx - faceR, cy - faceR, faceR * 2, faceR * 2);
+            }
+
+            g.restoreState();
         }
-
-        // Inner shadow rim
-        g.setColour (juce::Colours::black.withAlpha (0.50f));
-        g.fillEllipse (cx - r * 0.90f, cy - r * 0.90f, r * 1.80f, r * 1.80f);
-
-        // Rubber dome body
+        else
         {
-            const float dr = r * 0.82f;
-            const float pressY = isDown ? 1.5f : 0.0f;
-            juce::ColourGradient dome (
-                lit ? juce::Colour (0xff142814) : juce::Colour (0xff252525),
-                cx, cy - dr * 0.5f + pressY,
-                lit ? juce::Colour (0xff080f08) : juce::Colour (0xff0a0a0a),
-                cx, cy + dr * 0.65f + pressY, false);
-            g.setGradientFill (dome);
-            g.fillEllipse (cx - dr, cy - dr, dr * 2, dr * 2);
+            // Fallback procedural body
+            {
+                juce::ColourGradient sk (
+                    juce::Colour (0xff303040), cx - skirtR * 0.35f, cy - skirtR * 0.55f,
+                    juce::Colour (0xff0d0d18), cx + skirtR * 0.45f, cy + skirtR * 0.45f, true);
+                g.setGradientFill (sk);
+                g.fillEllipse (cx - skirtR, cy - skirtR, skirtR * 2, skirtR * 2);
+            }
+            {
+                juce::ColourGradient fc (
+                    lit ? juce::Colour (0xff182a20) : juce::Colour (0xff20203a),
+                    cx, cy - faceR * 0.55f,
+                    lit ? juce::Colour (0xff080f0c) : juce::Colour (0xff08080f),
+                    cx, cy + faceR * 0.55f, false);
+                g.setGradientFill (fc);
+                g.fillEllipse (cx - faceR, cy - faceR, faceR * 2, faceR * 2);
+            }
         }
 
-        // Dome specular — convex highlight upper-left
-        if (!isDown)
+        // ── Pressed darkening ─────────────────────────────────────────────────
+        if (isDown)
         {
-            juce::ColourGradient spec (
-                juce::Colours::white.withAlpha (0.28f), cx - r * 0.22f, cy - r * 0.68f,
-                juce::Colours::white.withAlpha (0.00f), cx + r * 0.10f, cy - r * 0.08f, false);
-            g.setGradientFill (spec);
-            g.fillEllipse (cx - r * 0.65f, cy - r * 0.88f, r * 1.25f, r * 0.82f);
+            g.saveState();
+            juce::Path mask;
+            mask.addEllipse (cx - skirtR, cy - skirtR, skirtR * 2, skirtR * 2);
+            g.reduceClipRegion (mask);
+            g.setColour (juce::Colours::black.withAlpha (0.28f));
+            g.fillEllipse (cx - skirtR, cy - skirtR, skirtR * 2, skirtR * 2);
+            g.restoreState();
         }
 
-        // Outer ring stroke
-        g.setColour (juce::Colour (lit ? 0xff385038u : 0xff3a3a3au));
-        g.drawEllipse (cx - r, cy - r, r * 2, r * 2, 1.5f);
+        // ── Active edge ring ──────────────────────────────────────────────────
+        g.setColour (lit ? jade.withAlpha (0.65f) : juce::Colour (0xff2a2a3c));
+        g.drawEllipse (cx - skirtR, cy - skirtR, skirtR * 2, skirtR * 2, lit ? 1.8f : 1.0f);
 
-        // LED
-        const float ledR = 5.0f;
-        const float ledY = cy - r * 0.62f;
-        if (lit)
+        // ── LED indicator ─────────────────────────────────────────────────────
         {
-            g.setColour (juce::Colour (0xff44ff44).withAlpha (0.45f));
-            g.fillEllipse (cx - ledR - 3, ledY - 3, (ledR + 3) * 2, (ledR + 3) * 2);
-        }
-        g.setColour (juce::Colour (lit ? 0xff88ff88u : 0xff0b250bu));
-        g.fillEllipse (cx - ledR, ledY, ledR * 2, ledR * 2);
-        if (lit)  // LED specular
-        {
-            g.setColour (juce::Colours::white.withAlpha (0.55f));
-            g.fillEllipse (cx - ledR * 0.45f, ledY + ledR * 0.12f, ledR * 0.55f, ledR * 0.42f);
-        }
+            const float ledR  = juce::jmax (3.5f, faceR * 0.21f);
+            const float ledCx = cx;
+            const float ledCy = cy - faceR * 0.52f;
 
+            if (lit)
+            {
+                // Wide soft bloom
+                g.setColour (jade.withAlpha (0.38f));
+                g.fillEllipse (ledCx - ledR * 2.8f, ledCy - ledR * 2.8f, ledR * 5.6f, ledR * 5.6f);
+                // Tighter inner glow
+                g.setColour (jade.withAlpha (0.65f));
+                g.fillEllipse (ledCx - ledR * 1.6f, ledCy - ledR * 1.6f, ledR * 3.2f, ledR * 3.2f);
+            }
+
+            // LED body — gradient from white-green centre to jade edge
+            {
+                juce::ColourGradient led (
+                    lit ? juce::Colour (0xffd0fff0) : juce::Colour (0xff141422),
+                    ledCx - ledR * 0.28f, ledCy - ledR * 0.36f,
+                    lit ? jade                      : juce::Colour (0xff080810),
+                    ledCx + ledR * 0.28f, ledCy + ledR * 0.36f, false);
+                g.setGradientFill (led);
+                g.fillEllipse (ledCx - ledR, ledCy - ledR, ledR * 2, ledR * 2);
+            }
+
+            if (lit)
+            {
+                // Specular dot (white glint, top-left of LED)
+                g.setColour (juce::Colours::white.withAlpha (0.88f));
+                g.fillEllipse (ledCx - ledR * 0.38f, ledCy - ledR * 0.62f,
+                               ledR * 0.52f, ledR * 0.38f);
+            }
+        }
+    }
+
+private:
+    mutable juce::Image knobImage;
+
+    const juce::Image& getKnobImage() const
+    {
+        if (! knobImage.isValid())
+        {
+            auto full = juce::ImageCache::getFromMemory (BinaryData::knobs_png, BinaryData::knobs_pngSize);
+            if (full.isValid())
+                knobImage = full.getClippedImage ({ 0, 0, full.getWidth(), full.getWidth() });
+        }
+        return knobImage;
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FootswitchButton)
