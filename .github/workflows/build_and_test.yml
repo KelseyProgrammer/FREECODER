@@ -227,32 +227,17 @@ jobs:
           files-folder: ${{ env.ARTIFACTS_PATH }}
           files-folder-filter: exe
 
-      - name: Zip VST3 and CLAP (Windows)
+      - name: Bundle All Formats (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          7z a -tzip "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}-VST3.zip" "${{ env.VST3_PATH }}"
-          7z a -tzip "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}-CLAP.zip" "${{ env.CLAP_PATH }}"
+          7z a -tzip "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.zip" "${{ env.VST3_PATH }}" "${{ env.CLAP_PATH }}" "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.exe"
 
-      - name: Upload VST3 zip (Windows)
+      - name: Upload Zip (Windows)
         if: ${{ runner.os == 'Windows' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_NAME }}-VST3.zip
-          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}-VST3.zip"
-
-      - name: Upload CLAP zip (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}-CLAP.zip
-          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}-CLAP.zip"
-
-      - name: Upload Exe (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT_NAME }}.exe
-          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.exe"
+          name: ${{ env.ARTIFACT_NAME }}.zip
+          path: "${{ env.ARTIFACTS_PATH }}/${{ env.ARTIFACT_NAME }}.zip"
 
 
       - name: Upload Zip (Linux)
@@ -288,6 +273,5 @@ jobs:
           # download-artifact puts these files in their own dirs...
           # Using globs sidesteps having to pass the version around
           files: |
-            */*.exe
             */*.zip
             */*.dmg
