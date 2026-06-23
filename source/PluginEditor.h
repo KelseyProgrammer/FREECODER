@@ -60,6 +60,7 @@ private:
     // State updated by timer
     float donorFillLevel = 0.0f;
     juce::Rectangle<int> displayBounds;
+    float breathPhase = 0.0f;  // slow sine animation for ambient glow
 
     // Spectrum visualizer + tuner + waveform
     SpectralEngine::SpectrumSnapshot spectrumSnapshot;

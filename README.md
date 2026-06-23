@@ -58,7 +58,7 @@ The result is something between a vocoder, a granular reverb, and an audio prism
 | Polyphony | 8 voices (MIDI mode) |
 | Donor length | Up to 5 seconds · 3 slots |
 | Requires | macOS 10.13+ · 64-bit DAW |
-| Version | 0.2.20 |
+| Version | 0.2.24 |
 
 ---
 
